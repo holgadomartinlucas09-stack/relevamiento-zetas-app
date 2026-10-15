@@ -1,27 +1,34 @@
-# Relevamiento Zetas — V7.1 Confidencial
+# Relevamiento Zetas — V8 · Archivo físico offline
 
-Esta versión separa el visor web de los datos sensibles.
+Esta versión mantiene los datos del relevamiento separados de la web pública y agrega un segundo sistema offline más robusto:
 
-## Repositorio público
-Este repositorio puede contener:
-- `index.html`
-- `sw.js`
-- `.nojekyll`
+- **Archivo físico `.mapdata`**: método recomendado.
+- **Caché del navegador**: respaldo.
+- **Online**: cuando hay conexión.
 
-**No contiene coordenadas de Zetas.**
+## Privacidad
 
-## Datos privados
-Las coordenadas se cargan desde un archivo JSON mantenido fuera del repositorio.
-La app lo guarda localmente en el navegador del dispositivo.
+El repositorio público NO contiene las coordenadas ni IDs reales de las Zetas.
 
-## Uso
-1. Abrir la web HTTPS.
-2. Menú → **Cargar relevamiento**.
-3. Seleccionar el JSON privado.
-4. Descargar el mapa offline si se desea.
-5. Trabajar sin conexión.
+El archivo privado `relevamiento_zetas_PRIVADO.json` se carga localmente desde el teléfono.
 
-Fuente cartográfica: Argenmap Híbrido — Instituto Geográfico Nacional de la República Argentina.
+El `.mapdata` también debe tratarse como información confidencial: aunque no guarda la lista de Zetas, sus teselas revelan aproximadamente las áreas de cobertura.
 
-## V7.1
-La descarga móvil puede guardar por separado Argenmap Híbrido y la capa de imagen aérea/ortofoto del IGN para uso sin conexión.
+## Crear el mapa offline
+
+1. Abrir la app desde HTTPS.
+2. Cargar el relevamiento privado.
+3. Menú → **Crear archivo físico .mapdata**.
+4. Elegir radio, zoom y `Híbrido + imagen aérea`.
+5. Guardar como `relevamiento_mapa.mapdata`.
+6. Menú → **Abrir .mapdata** y seleccionar ese archivo.
+7. Probar en modo avión.
+
+El formato V2 se lee por rangos, por lo que un archivo grande no se carga entero en RAM.
+
+## Fuentes
+
+- Argenmap Híbrido — Instituto Geográfico Nacional de la República Argentina.
+- Fotografías aéreas / ortomosaicos del IGN.
+
+Atribución incluida en la aplicación.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0f172a">
-<title>Relevamiento Zetas · V7.1 Confidencial</title>
+<title>Relevamiento Zetas · V8 · Archivo físico</title>
 <style>
 :root {
   --bg:#0f172a; --panel:#ffffff; --text:#0f172a; --muted:#64748b;
@@ -82,12 +82,21 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 .private-card .smalltxt{font-size:11px;color:#475569;line-height:1.35}
 .private-status{font-size:11px;margin-top:7px;padding:8px;background:white;border-radius:9px;border:1px solid #ddd6fe}
 
+
+.file-card{margin-top:10px;border:1px solid #86efac;background:#f0fdf4;border-radius:12px;padding:10px}
+.file-card h3{font-size:13px;margin:0 0 7px}
+.file-card .smalltxt{font-size:11px;color:#475569;line-height:1.4}
+.file-card .fields{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.file-card select,.file-card button{width:100%;border:1px solid #cbd5e1;background:white;border-radius:10px;padding:9px}
+.file-card input[type="checkbox"]{width:auto}
+.physical-status{font-size:11px;margin-top:7px;padding:8px;background:white;border-radius:9px;border:1px solid #bbf7d0;line-height:1.4}
+
 </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <div class="brand">Relevamiento Zetas · V7.1 Confidencial</div>
+    <div class="brand">Relevamiento Zetas · V8 · Archivo físico</div>
     <div class="stats">
       <div class="badge">Total <b id="totalCount">0</b></div>
       <div class="badge">Pend. <b id="pendingCount">0</b></div>
@@ -135,9 +144,9 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
       </select>
       <label>Origen de los mapas</label>
       <select id="sourceSelect">
-        <option value="auto">Automático</option>
-        <option value="mobile">Offline guardado en este celular</option>
-        <option value="offline">Archivo .mapdata</option>
+        <option value="auto">Automático · prioriza .mapdata</option>
+        <option value="offline">Archivo .mapdata · recomendado</option>
+        <option value="mobile">Caché offline del navegador</option>
         <option value="online">Online</option>
       </select>
 
@@ -145,8 +154,57 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
         <b>Para descargar el mapa offline en Android:</b><br>
         esta misma carpeta debe publicarse en una dirección <b>HTTPS</b>. Abrir <code>index.html</code> desde Descargas/Archivos no permite usar Service Workers.
       </div>
+      <div class="file-card">
+        <h3>💾 Crear archivo físico .mapdata</h3>
+        <div class="smalltxt">
+          Crea un archivo real en el almacenamiento del teléfono. Contiene las imágenes del mapa y no depende de que Chrome conserve su caché.
+          <b>Este archivo también debe tratarse como confidencial</b>, porque la distribución de teselas permite inferir las zonas del relevamiento.
+        </div>
+        <div class="fields">
+          <div>
+            <label>Radio alrededor de cada Zeta</label>
+            <select id="physicalRadius">
+              <option value="500">500 m</option>
+              <option value="750">750 m</option>
+              <option value="1000" selected>1.000 m</option>
+            </select>
+          </div>
+          <div>
+            <label>Zoom máximo</label>
+            <select id="physicalZmax">
+              <option value="16">16</option>
+              <option value="17" selected>17</option>
+              <option value="18">18</option>
+            </select>
+          </div>
+        </div>
+        <label style="margin-top:8px">Capas dentro del archivo</label>
+        <select id="physicalLayers">
+          <option value="both" selected>Híbrido + imagen aérea · recomendado</option>
+          <option value="hybrid">Solo híbrido</option>
+          <option value="sat">Solo imagen aérea</option>
+        </select>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:8px;color:#334155">
+          <input id="physicalCompress" type="checkbox" checked>
+          Comprimir imágenes a WebP (~78 %) para reducir el tamaño
+        </label>
+        <div class="progress"><div id="physicalProgressBar"></div></div>
+        <div class="progressline">
+          <span id="physicalProgressText">Sin iniciar</span>
+          <span id="physicalSizeText">—</span>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="createPhysicalMap">Crear .mapdata</button>
+          <button id="stopPhysicalMap">Detener y guardar parcial</button>
+        </div>
+        <div id="physicalSupport" class="physical-status">Comprobando si el navegador permite guardar archivos grandes…</div>
+        <div class="smalltxt" style="margin-top:7px">
+          Recomendado: <b>Chrome/Edge en Android</b>. La app escribe cada tesela directamente al archivo, sin intentar mantener ~1 GB completo en la memoria RAM.
+        </div>
+      </div>
+
       <div class="offline-card">
-        <h3>📱 Preparar mapa offline en este celular</h3>
+        <h3>🧰 Caché offline del navegador · respaldo</h3>
         <div class="smalltxt" id="mobileOfflineSupport">
           Comprobando compatibilidad del navegador...
         </div>
@@ -188,20 +246,20 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
           <button id="clearMobileOffline">Borrar mapa del celular</button>
         </div>
         <div class="smalltxt" style="margin-top:7px">
-          La descarga se guarda en la caché privada del navegador. Podés guardar <b>Híbrido</b>, <b>imagen aérea</b> o ambas capas.
+          Este método guarda las imágenes en la caché privada del navegador y queda como <b>respaldo</b>. Para trabajo de campo prolongado conviene crear el archivo físico <b>.mapdata</b> de arriba.
           Si ya existen teselas, se reutilizan. Para descargar en Android esta página debe abrirse desde <b>HTTPS</b>, no como archivo local.
         </div>
       </div>
       <div class="row">
-        <button id="loadMapdata">Cargar mapa offline</button>
-        <button id="unloadMapdata">Cerrar paquete</button>
+        <button id="loadMapdata">Abrir .mapdata</button>
+        <button id="unloadMapdata">Cerrar .mapdata</button>
       </div>
       <input id="mapdataFile" type="file" accept=".mapdata,application/octet-stream" hidden>
       <div id="packageStatus" style="font-size:11px;color:#475569;margin-top:7px;padding:8px;background:#f8fafc;border-radius:9px">
-        Paquete offline: no cargado.
+        Archivo .mapdata: no cargado.
       </div>
       <div style="font-size:11px;color:#64748b;margin-top:6px">
-        Híbrido es el modo predeterminado. En Android podés guardar tanto el mapa <b>Híbrido</b> como la capa de <b>Solo imagen aérea</b> para usarlas sin Internet; el archivo <b>.mapdata</b> queda como alternativa.
+        El <b>.mapdata</b> es ahora el método offline recomendado. Puede contener <b>Híbrido + imagen aérea</b> y queda físicamente guardado en el teléfono. La caché del navegador queda como respaldo.
       </div>
       <div class="row">
         <button id="exportCsv">Exportar CSV</button>
@@ -213,7 +271,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
       </div>
       <input id="restoreFile" type="file" accept="application/json" hidden>
       <div style="font-size:11px;color:#64748b;margin-top:8px">
-        Los estados y notas se guardan en este navegador. El .mapdata de Argenmap Híbrido se lee por partes: aunque ronde 1 GB, no se carga completo en RAM.
+        Los estados y notas se guardan en este navegador. El .mapdata se lee por partes: aunque ronde 1 GB o más, la app abre únicamente las teselas que necesita y no carga el archivo completo en RAM.
       </div>
     </div>
 
@@ -225,7 +283,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
       <button class="map-btn small" id="nearestBtn">CER</button>
     </div>
 
-    <div id="offlineNote" class="offline-note">Sin conexión: cargá el archivo .mapdata para ver el fondo híbrido. Los puntos, estados, notas y GPS siguen disponibles.</div>
+    <div id="offlineNote" class="offline-note">Sin conexión: abrí tu archivo .mapdata para ver el mapa. Los puntos, estados, notas y GPS siguen disponibles.</div>
     <div class="empty" id="emptyMsg">No hay puntos con este filtro.</div>
     <div class="attribution" id="attrib">FUENTE: Instituto Geográfico Nacional de la República Argentina</div>
   </div>
@@ -261,6 +319,7 @@ let center={lat:-34.6177,lon:-68.3301}, zoom=11, base="hybrid", sourceMode="auto
 let selectedId=null, gpsPos=null, gpsWatch=null, drag=null, raf=0;
 let mapPackageFile=null, mapPackageHeader=null, mapPackageDataStart=0, mapPackageName="";
 let swReady=false, mobileDownloadPaused=false, wakeLock=null;
+let physicalStopRequested=false, physicalBuilding=false;
 const MOBILE_HYBRID_CACHE="zetas-argenmap-hybrid-v1";
 const MOBILE_SAT_CACHE="zetas-satellite-v1";
 const MOBILE_SW_ROUTES={hybrid:"__ign_hybrid/",sat:"__satellite/"};
@@ -382,9 +441,9 @@ function effectiveSource(){
   if(sourceMode==="online") return "online";
   if(sourceMode==="mobile") return "mobile";
   if(sourceMode==="offline") return "offline";
-  // Auto: prefer browser cache if the service worker is active; then .mapdata; otherwise network.
-  if(swReady) return "mobile";
+  // Auto: el archivo físico es la fuente offline principal.
   if(mapPackageFile && mapPackageHeader) return "offline";
+  if(swReady) return "mobile";
   return navigator.onLine ? "online" : "offline";
 }
 function onlineTileUrl(kind,z,x,y){
@@ -484,18 +543,20 @@ async function loadMapdataFile(file){
     const n=header.tile_count ?? Object.keys(header.tiles).length;
     const ztxt=(header.zoom_min!=null && header.zoom_max!=null)?` · zoom ${header.zoom_min}–${header.zoom_max}`:"";
     const source=header.source_name?`<br>${header.source_name}`:"";
-    el("packageStatus").innerHTML=`<b>${file.name}</b><br>${mb} MB · ${Number(n).toLocaleString()} teselas${ztxt}${source}`;
+    const lc=header.layer_counts||{};
+    const ltxt=(lc.hybrid||lc.sat)?`<br>Híbrido: ${Number(lc.hybrid||0).toLocaleString()} · Imagen aérea: ${Number(lc.sat||0).toLocaleString()}`:"";
+    el("packageStatus").innerHTML=`<b>${file.name}</b><br>${mb} MB · ${Number(n).toLocaleString()} teselas${ztxt}${ltxt}${source}`;
     if(sourceMode==="auto" || sourceMode==="offline") render();
   }catch(err){
     mapPackageFile=null; mapPackageHeader=null; mapPackageDataStart=0; mapPackageName="";
-    el("packageStatus").textContent="Paquete offline: no cargado.";
+    el("packageStatus").textContent="Archivo .mapdata: no cargado.";
     alert("No pude abrir el paquete:\n"+err.message);
   }
 }
 function unloadMapdata(){
   mapPackageFile=null; mapPackageHeader=null; mapPackageDataStart=0; mapPackageName="";
   el("mapdataFile").value="";
-  el("packageStatus").textContent="Paquete offline: no cargado.";
+  el("packageStatus").textContent="Archivo .mapdata: no cargado.";
   render();
 }
 function updateMapModeBadge(){
@@ -547,6 +608,8 @@ function render(){
             addPackageTile("reference",zoom,wrapped,ty,px,py,"tile-ref",serial);
           }
         }else if(base==="sat"){
+          // Híbrido debajo como respaldo si una ortofoto no existe o tiene transparencia.
+          addPackageTile("hybrid",zoom,wrapped,ty,px,py,"tile-base",serial);
           addPackageTile("sat",zoom,wrapped,ty,px,py,"tile-base",serial);
         }else{
           addPackageTile("streets",zoom,wrapped,ty,px,py,"tile-streets",serial);
@@ -626,7 +689,17 @@ function search(){
 }
 function updateNet(){
   const on=navigator.onLine; el("net").textContent=on?"Online":"Offline";
-  el("offlineNote").style.display=on?"none":"block";
+  const note=el("offlineNote");
+  if(on){
+    note.style.display="none";
+  }else if(mapPackageFile && mapPackageHeader){
+    note.textContent="Sin conexión · usando el archivo .mapdata del teléfono.";
+    note.style.display="block";
+    setTimeout(()=>{ if(!navigator.onLine && mapPackageFile) note.style.display="none"; },2200);
+  }else{
+    note.textContent="Sin conexión: abrí tu archivo .mapdata para ver el mapa. Los puntos, estados, notas y GPS siguen disponibles.";
+    note.style.display="block";
+  }
   if(sourceMode==="auto") render();
 }
 function startGps(){
@@ -836,6 +909,190 @@ async function clearMobileOffline(){
   }
 }
 
+
+const EXPORT_SOURCES={
+  hybrid:"https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/mapabase_hibrido@EPSG%3A3857@png/",
+  sat:"https://imagenes.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/mosaicos_vuelos@EPSG%3A3857@png/"
+};
+function physicalRemoteUrl(layer,z,x,y){
+  const tmsY=(2**z)-1-y;
+  return `${EXPORT_SOURCES[layer]}${z}/${x}/${tmsY}.png`;
+}
+function updatePhysicalSupport(){
+  const box=el("physicalSupport");
+  if("showSaveFilePicker" in window){
+    box.innerHTML='<span class="status-ok">✓ Este navegador permite escribir el .mapdata directamente al almacenamiento del teléfono.</span>';
+  }else{
+    box.innerHTML='<span class="status-warn"><b>Guardado directo no disponible en este navegador.</b><br>Probá abrir esta misma página con Chrome o Edge actualizado. La caché offline sigue funcionando como alternativa.</span>';
+  }
+}
+function u64le(n){
+  const b=new ArrayBuffer(8),v=new DataView(b);
+  v.setBigUint64(0,BigInt(n),true);
+  return new Uint8Array(b);
+}
+async function transcodeWebp(buffer,quality=.78){
+  if(!el("physicalCompress")?.checked) return {data:new Uint8Array(buffer),mime:"image/png"};
+  try{
+    const bitmap=await createImageBitmap(new Blob([buffer],{type:"image/png"}));
+    const canvas=document.createElement("canvas");
+    canvas.width=bitmap.width; canvas.height=bitmap.height;
+    const ctx=canvas.getContext("2d",{alpha:true});
+    ctx.drawImage(bitmap,0,0);
+    bitmap.close?.();
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",quality));
+    if(blob && blob.size>100){
+      return {data:new Uint8Array(await blob.arrayBuffer()),mime:"image/webp"};
+    }
+  }catch(e){}
+  return {data:new Uint8Array(buffer),mime:"image/png"};
+}
+async function fetchExportTile(layer,z,x,y){
+  const r=await fetch(physicalRemoteUrl(layer,z,x,y),{mode:"cors",cache:"no-store"});
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  const b=await r.arrayBuffer();
+  if(b.byteLength<100) throw new Error("respuesta vacía");
+  return b;
+}
+async function testExportAccess(layers,tile){
+  for(const layer of layers){
+    const [z,x,y]=tile;
+    try{
+      const b=await fetchExportTile(layer,z,x,y);
+      if(!b || b.byteLength<100) throw new Error("sin imagen");
+    }catch(e){
+      throw new Error(`El navegador no pudo leer la capa ${layer==="hybrid"?"Híbrido":"Imagen aérea"} desde IGN. ${e.message||e}`);
+    }
+  }
+}
+async function createPhysicalMapdata(){
+  if(physicalBuilding) return;
+  if(!POINTS.length){alert("Primero cargá el archivo privado del relevamiento.");return;}
+  if(!("showSaveFilePicker" in window)){
+    alert("Este navegador no permite guardar un archivo grande de forma progresiva. Abrí la app con Chrome o Edge actualizado, o usá temporalmente la caché offline.");
+    return;
+  }
+  const radius=Number(el("physicalRadius").value);
+  const zmax=Number(el("physicalZmax").value);
+  const zmin=10;
+  const choice=el("physicalLayers").value;
+  const layers=choice==="both"?["hybrid","sat"]:[choice];
+  const tiles=offlineTileSet(radius,zmin,zmax);
+  const total=tiles.length*layers.length;
+  const names=layers.map(x=>x==="hybrid"?"Híbrido":"Imagen aérea").join(" + ");
+  const ok=confirm(`Se crearán ${tiles.length.toLocaleString()} posiciones de mapa para ${names}.\n\nTeselas a procesar: ${total.toLocaleString()}.\nEl tamaño final puede ser de varios cientos de MB o superar 1 GB según la cobertura.\n\nEl archivo también debe considerarse confidencial.\n\n¿Continuar?`);
+  if(!ok) return;
+
+  let handle;
+  try{
+    handle=await window.showSaveFilePicker({
+      id:"relevamiento-zetas-mapdata",
+      suggestedName:"relevamiento_mapa.mapdata",
+      startIn:"downloads",
+      types:[{description:"Mapa offline Relevamiento Zetas",accept:{"application/octet-stream":[".mapdata"]}}]
+    });
+  }catch(e){
+    if(e?.name!=="AbortError") alert("No pude abrir el selector de guardado:\n"+e.message);
+    return;
+  }
+
+  physicalBuilding=true;
+  physicalStopRequested=false;
+  await acquireWakeLock();
+  const bar=el("physicalProgressBar"),txt=el("physicalProgressText"),siz=el("physicalSizeText");
+  bar.style.width="0%"; txt.textContent="Comprobando acceso a las imágenes…"; siz.textContent="0 MB";
+  let writable=null;
+  const tilesIndex={};
+  const layerCounts={hybrid:0,sat:0};
+  let failed=0,completed=0,written=0;
+  const started=Date.now();
+
+  try{
+    await testExportAccess(layers,tiles[0]);
+
+    writable=await handle.createWritable({keepExistingData:false});
+    const enc=new TextEncoder();
+    await writable.write(enc.encode("ZMAPDT02"));
+    let dataOffset=0;
+
+    // La escritura es secuencial para mantener bajo el uso de RAM.
+    outer:
+    for(const layer of layers){
+      for(const [z,x,y] of tiles){
+        if(physicalStopRequested) break outer;
+        try{
+          const raw=await fetchExportTile(layer,z,x,y);
+          const converted=await transcodeWebp(raw,.78);
+          const key=`${layer}/${z}/${x}/${y}`;
+          await writable.write(converted.data);
+          tilesIndex[key]=[dataOffset,converted.data.byteLength,converted.mime];
+          dataOffset+=converted.data.byteLength;
+          written+=converted.data.byteLength;
+          layerCounts[layer]++;
+        }catch(e){
+          failed++;
+        }
+        completed++;
+        if(completed%5===0 || completed===total){
+          const pct=completed/total*100;
+          bar.style.width=pct.toFixed(2)+"%";
+          const elapsed=Math.max(1,(Date.now()-started)/1000);
+          const rate=completed/elapsed;
+          const eta=rate>0?(total-completed)/rate:0;
+          txt.textContent=`${completed.toLocaleString()} / ${total.toLocaleString()} · ${pct.toFixed(1)}%${failed?` · fallos ${failed}`:""} · ETA ${(eta/60).toFixed(1)} min`;
+          siz.textContent=`${(written/1024/1024).toFixed(0)} MB`;
+        }
+      }
+    }
+
+    txt.textContent=physicalStopRequested?"Finalizando archivo parcial…":"Finalizando índice…";
+    const header={
+      version:2,
+      format:"ZMAPDT02",
+      created_utc:new Date().toISOString(),
+      tile_scheme:"XYZ",
+      tile_size:256,
+      source_name:"IGN Argentina · Argenmap Híbrido + fotografías aéreas",
+      source_url:"https://www.ign.gob.ar/NuestrasActividades/InformacionGeoespacial/ServiciosOGC",
+      coverage_radius_m:radius,
+      zoom_min:zmin,
+      zoom_max:zmax,
+      compressed_webp:!!el("physicalCompress").checked,
+      tile_count:Object.keys(tilesIndex).length,
+      layer_counts:layerCounts,
+      failed_tiles:failed,
+      partial:physicalStopRequested || completed<total,
+      attribution:"FUENTE: Instituto Geográfico Nacional de la República Argentina",
+      tiles:tilesIndex
+    };
+    const indexBytes=enc.encode(JSON.stringify(header));
+    await writable.write(indexBytes);
+    await writable.write(enc.encode("ZMAPEND2"));
+    await writable.write(u64le(indexBytes.byteLength));
+    await writable.close();
+    writable=null;
+
+    const finalMB=(written+indexBytes.byteLength+24)/1024/1024;
+    bar.style.width=physicalStopRequested?(completed/total*100).toFixed(2)+"%":"100%";
+    txt.textContent=`${physicalStopRequested?"Archivo parcial guardado":"Archivo listo"} · ${Object.keys(tilesIndex).length.toLocaleString()} teselas${failed?` · ${failed} fallos`:""}`;
+    siz.textContent=`~${finalMB.toFixed(0)} MB`;
+    alert(`${physicalStopRequested?"Se guardó un paquete parcial":"Mapa offline creado"}.\n\nAhora tocá “Abrir .mapdata” y elegí relevamiento_mapa.mapdata.\n\nDespués podés poner el teléfono en modo avión y usar Híbrido o Solo imagen aérea.`);
+  }catch(e){
+    try{ if(writable) await writable.abort(); }catch(_){}
+    alert("No pude crear el .mapdata:\n\n"+(e.message||e)+"\n\nSi el mensaje menciona acceso/CORS, usá por ahora la caché offline y decime qué error aparece para adaptar la descarga.");
+    txt.textContent="Error al crear el archivo";
+  }finally{
+    physicalBuilding=false;
+    physicalStopRequested=false;
+    await releaseWakeLock();
+  }
+}
+function stopPhysicalMapdata(){
+  if(!physicalBuilding){alert("No hay ningún .mapdata en creación.");return;}
+  physicalStopRequested=true;
+  el("physicalProgressText").textContent+=" · deteniendo…";
+}
+
 function exportCsv(){
   const rows=[["zeta","latitud","longitud","zona","estado","observaciones","actualizado"]];
   POINTS.forEach(p=>{const r=rec(p.id);rows.push([p.id,p.lat,p.lon,p.zona,r.done?"Relevado":"Pendiente",r.note||"",r.updated||""]);});
@@ -861,6 +1118,8 @@ el("gpsBtn").onclick=startGps;el("nearestBtn").onclick=nearest;
 el("menuBtn").onclick=()=>{const p=el("menuPanel");p.style.display=p.style.display==="block"?"none":"block";};
 el("baseSelect").onchange=e=>{base=e.target.value;localStorage.setItem("relevamientoBase",base);render();};
 el("exportCsv").onclick=exportCsv;el("backupJson").onclick=backup;
+el("createPhysicalMap").onclick=createPhysicalMapdata;
+el("stopPhysicalMap").onclick=stopPhysicalMapdata;
 el("prepareMobileOffline").onclick=prepareMobileOffline;
 el("pauseMobileOffline").onclick=pauseMobileOffline;
 el("checkMobileOffline").onclick=checkMobileOffline;
@@ -891,6 +1150,7 @@ el("baseSelect").value=base;
 el("sourceSelect").value=sourceMode;
 el("sourceSelect").onchange=e=>{sourceMode=e.target.value;localStorage.setItem("relevamientoSource",sourceMode);render();};
 updateMapModeBadge();
+updatePhysicalSupport();
 loadPrivatePointsFromStorage();
 updatePrivateDataStatus();
 updateStats();updateNet();fit(POINTS);
