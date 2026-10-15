@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0f172a">
-<title>Relevamiento Zetas · V8.2 · Archivo físico</title>
+<title>Relevamiento Zetas · V8.4 · Zonas offline</title>
 <style>
 :root {
   --bg:#0f172a; --panel:#ffffff; --text:#0f172a; --muted:#64748b;
@@ -123,7 +123,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 <body>
 <div id="app">
   <header>
-    <div class="brand">Relevamiento Zetas · V8.2 · Archivo físico</div>
+    <div class="brand">Relevamiento Zetas · V8.4 · Zonas offline</div>
     <div class="stats">
       <div class="badge">Total <b id="totalCount">0</b></div>
       <div class="badge">Pend. <b id="pendingCount">0</b></div>
@@ -184,16 +184,25 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
       <div class="file-card">
         <h3>💾 Crear archivo físico .mapdata</h3>
         <div class="smalltxt">
-          Crea un archivo real en el almacenamiento del teléfono. Al tocar el botón se abre primero el selector de guardado. Contiene las imágenes del mapa y no depende de que Chrome conserve su caché.
+          Crea un archivo real en el almacenamiento del teléfono. Podés generar solo la zona Este u Oeste para reducir el tamaño. Al tocar el botón se abre primero el selector de guardado. Contiene las imágenes del mapa y no depende de que Chrome conserve su caché.
           <b>Este archivo también debe tratarse como confidencial</b>, porque la distribución de teselas permite inferir las zonas del relevamiento.
         </div>
         <div class="fields">
           <div>
+            <label>Zona a incluir</label>
+            <select id="physicalArea">
+              <option value="all">Todos</option>
+              <option value="Este" selected>Solo Este</option>
+              <option value="Oeste">Solo Oeste</option>
+            </select>
+          </div>
+          <div>
             <label>Radio alrededor de cada Zeta</label>
             <select id="physicalRadius">
               <option value="500">500 m</option>
-              <option value="750">750 m</option>
-              <option value="1000" selected>1.000 m</option>
+              <option value="1000">1.000 m</option>
+              <option value="1500">1.500 m</option>
+              <option value="2000" selected>2.000 m</option>
             </select>
           </div>
           <div>
@@ -203,6 +212,12 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
               <option value="17" selected>17</option>
               <option value="18">18</option>
             </select>
+          </div>
+          <div>
+            <label>Nombre sugerido</label>
+            <div id="physicalFilenamePreview" style="font-size:11px;padding:10px 8px;background:white;border:1px solid #cbd5e1;border-radius:10px;min-height:38px;display:flex;align-items:center;word-break:break-all">
+              relevamiento_este_z17_2000m.mapdata
+            </div>
           </div>
         </div>
         <label style="margin-top:8px">Capas dentro del archivo</label>
@@ -515,7 +530,7 @@ function packageKey(kind,z,x,y){
   const layer = kind==="sat" ? "sat" : kind;
   return `${layer}/${z}/${x}/${y}`;
 }
-async function addPackageTile(kind,z,x,y,left,top,cls,serial){
+async function addPackageTile(kind,z,x,y,left,top,cls,serial,displaySize=TILE){
   if(!mapPackageFile || !mapPackageHeader || !mapPackageHeader.tiles) return;
   const key=packageKey(kind,z,x,y);
   const info=mapPackageHeader.tiles[key];
@@ -527,11 +542,43 @@ async function addPackageTile(kind,z,x,y,left,top,cls,serial){
     if(serial!==renderSerial){ URL.revokeObjectURL(url); return; }
     const im=document.createElement("img");
     im.className="tile "+cls; im.draggable=false;
-    im.src=url; im.style.left=left+"px"; im.style.top=top+"px";
+    im.src=url;
+    im.style.left=left+"px"; im.style.top=top+"px";
+    im.style.width=displaySize+"px"; im.style.height=displaySize+"px";
     im.onload=()=>URL.revokeObjectURL(url);
     im.onerror=()=>{URL.revokeObjectURL(url);im.remove();};
     map.appendChild(im);
   }catch(e){}
+}
+
+// Si la vista está por debajo del zoom mínimo guardado en el .mapdata,
+// usamos las teselas del zoom mínimo y las reducimos visualmente.
+// Ej.: una tesela z9 se compone con 4 teselas z10 de 128×128 px.
+function addPackageTileForView(kind,viewZ,viewX,viewY,left,top,cls,serial){
+  const minZ=Number(mapPackageHeader?.zoom_min ?? viewZ);
+  if(viewZ>=minZ){
+    addPackageTile(kind,viewZ,viewX,viewY,left,top,cls,serial,TILE);
+    return;
+  }
+  const diff=minZ-viewZ;
+  // Evita crear cantidades absurdas de elementos si alguien aleja muchísimo.
+  // Hasta 3 niveles (factor 8) cubre perfectamente nuestras vistas generales.
+  if(diff>3) return;
+  const factor=2**diff;
+  const childSize=TILE/factor;
+  const nMin=2**minZ;
+  for(let cy=0;cy<factor;cy++){
+    for(let cx=0;cx<factor;cx++){
+      const childX=((viewX*factor+cx)%nMin+nMin)%nMin;
+      const childY=viewY*factor+cy;
+      if(childY<0 || childY>=nMin) continue;
+      addPackageTile(
+        kind,minZ,childX,childY,
+        left+cx*childSize,top+cy*childSize,
+        cls,serial,childSize+0.35
+      );
+    }
+  }
 }
 async function loadMapdataFile(file){
   if(!file) return;
@@ -573,9 +620,10 @@ async function loadMapdataFile(file){
     const n=header.tile_count ?? Object.keys(header.tiles).length;
     const ztxt=(header.zoom_min!=null && header.zoom_max!=null)?` · zoom ${header.zoom_min}–${header.zoom_max}`:"";
     const source=header.source_name?`<br>${header.source_name}`:"";
+    const areaTxt=header.coverage_area?`<br>Zona: ${header.coverage_area==="all"?"Todos":header.coverage_area} · ${Number(header.coverage_point_count||0).toLocaleString()} puntos`:"";
     const lc=header.layer_counts||{};
     const ltxt=(lc.hybrid||lc.sat)?`<br>Híbrido: ${Number(lc.hybrid||0).toLocaleString()} · Imagen aérea: ${Number(lc.sat||0).toLocaleString()}`:"";
-    el("packageStatus").innerHTML=`<b>${file.name}</b><br>${mb} MB · ${Number(n).toLocaleString()} teselas${ztxt}${ltxt}${source}`;
+    el("packageStatus").innerHTML=`<b>${file.name}</b><br>${mb} MB · ${Number(n).toLocaleString()} teselas${ztxt}${areaTxt}${ltxt}${source}<br><span style="color:#64748b">Compatible: la V8.3 reutiliza el zoom mínimo para las vistas generales.</span>`;
     if(sourceMode==="auto" || sourceMode==="offline") render();
   }catch(err){
     mapPackageFile=null; mapPackageHeader=null; mapPackageDataStart=0; mapPackageName="";
@@ -631,18 +679,19 @@ function render(){
         }
       }else{
         if(base==="hybrid"){
-          if(mapPackageHeader?.layer_counts?.hybrid || mapPackageHeader?.tiles?.[`hybrid/${zoom}/${wrapped}/${ty}`]){
-            addPackageTile("hybrid",zoom,wrapped,ty,px,py,"tile-base",serial);
+          if(Number(mapPackageHeader?.layer_counts?.hybrid||0)>0){
+            addPackageTileForView("hybrid",zoom,wrapped,ty,px,py,"tile-base",serial);
           }else{
-            addPackageTile("sat",zoom,wrapped,ty,px,py,"tile-base",serial);
-            addPackageTile("reference",zoom,wrapped,ty,px,py,"tile-ref",serial);
+            addPackageTileForView("sat",zoom,wrapped,ty,px,py,"tile-base",serial);
+            addPackageTileForView("reference",zoom,wrapped,ty,px,py,"tile-ref",serial);
           }
         }else if(base==="sat"){
-          // Híbrido debajo como respaldo si una ortofoto no existe o tiene transparencia.
-          addPackageTile("hybrid",zoom,wrapped,ty,px,py,"tile-base",serial);
-          addPackageTile("sat",zoom,wrapped,ty,px,py,"tile-base",serial);
+          // Híbrido debajo como respaldo. Ambos se pueden reutilizar aunque
+          // la vista esté por debajo del zoom mínimo del paquete.
+          addPackageTileForView("hybrid",zoom,wrapped,ty,px,py,"tile-base",serial);
+          addPackageTileForView("sat",zoom,wrapped,ty,px,py,"tile-base",serial);
         }else{
-          addPackageTile("streets",zoom,wrapped,ty,px,py,"tile-streets",serial);
+          addPackageTileForView("streets",zoom,wrapped,ty,px,py,"tile-streets",serial);
         }
       }
     }
@@ -668,7 +717,12 @@ function render(){
     if(src==="mobile"){
       el("attrib").textContent=base==="hybrid"?"FUENTE: Instituto Geográfico Nacional de la República Argentina · caché móvil":base==="sat"?"FUENTE: IGN · ortofotos/imágenes aéreas · caché móvil":"Caché móvil";
     }else if(src==="offline"){
-      el("attrib").textContent=mapPackageFile&&base==="hybrid"?"FUENTE: Instituto Geográfico Nacional de la República Argentina":mapPackageFile?(base==="sat"?"Paquete local · satélite":"Paquete local · calles"):"Offline · sin paquete";
+      const scaled=(mapPackageFile && mapPackageHeader?.zoom_min!=null && zoom<Number(mapPackageHeader.zoom_min))
+        ? ` · vista reescalada desde z${mapPackageHeader.zoom_min}` : "";
+      el("attrib").textContent=mapPackageFile&&base==="hybrid"
+        ? "FUENTE: Instituto Geográfico Nacional de la República Argentina"+scaled
+        : mapPackageFile?(base==="sat"?"Paquete local · satélite"+scaled:"Paquete local · calles"+scaled)
+        :"Offline · sin paquete";
     }else{
       el("attrib").textContent=base==="hybrid"?"FUENTE: Instituto Geográfico Nacional de la República Argentina":base==="sat"?"Esri World Imagery":"© OpenStreetMap contributors";
     }
@@ -806,29 +860,31 @@ async function updateMobileStorageInfo(){
     el("mobileStorageText").textContent=`${used.toFixed(0)} / ${quota.toFixed(0)} MB`;
   }catch(e){}
 }
-function offlineTileSet(radiusM,zmin,zmax){
-  const out=[];
-  for(let z=zmin;z<=zmax;z++){
-    const set=new Set();
-    const n=2**z;
-    for(const p of POINTS){
-      const lat=p.lat,lon=p.lon;
-      const dlat=radiusM/111320;
-      const dlon=radiusM/(111320*Math.max(.01,Math.cos(rad(lat))));
-      const a=projectTile(lat-dlat,lon-dlon,z);
-      const b=projectTile(lat+dlat,lon+dlon,z);
-      const xmin=Math.floor(Math.min(a.x,b.x)), xmax=Math.floor(Math.max(a.x,b.x));
-      const ymin=Math.floor(Math.min(a.y,b.y)), ymax=Math.floor(Math.max(a.y,b.y));
-      for(let x=xmin;x<=xmax;x++) for(let y=ymin;y<=ymax;y++){
-        if(y>=0&&y<n) set.add(`${((x%n)+n)%n}/${y}`);
+function offlineTileSet(radiusM,zmin,zmax,sourcePoints=POINTS){
+  const set=new Set();
+  const R=6378137;
+  for(const p of sourcePoints){
+    const lat=Number(p.lat), lon=Number(p.lon);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)) continue;
+    const dLat=(radiusM/R)*(180/Math.PI);
+    const dLon=dLat/Math.max(0.15,Math.cos(lat*Math.PI/180));
+    const minLat=Math.max(-85.0511,lat-dLat), maxLat=Math.min(85.0511,lat+dLat);
+    const minLon=lon-dLon, maxLon=lon+dLon;
+    for(let z=zmin;z<=zmax;z++){
+      const a=lonLatToTile(minLon,maxLat,z);
+      const b=lonLatToTile(maxLon,minLat,z);
+      const n=2**z;
+      const y0=Math.max(0,Math.floor(a.y)), y1=Math.min(n-1,Math.floor(b.y));
+      const x0=Math.floor(a.x), x1=Math.floor(b.x);
+      for(let y=y0;y<=y1;y++){
+        for(let x=x0;x<=x1;x++){
+          const wx=((x%n)+n)%n;
+          set.add(`${z}/${wx}/${y}`);
+        }
       }
     }
-    for(const key of set){
-      const [x,y]=key.split("/").map(Number);
-      out.push([z,x,y]);
-    }
   }
-  return out;
+  return [...set].map(k=>k.split("/").map(Number));
 }
 function projectTile(lat,lon,z){
   const n=2**z;
@@ -854,7 +910,7 @@ async function prepareMobileOffline(){
   const zmax=Number(el("mobileZmax").value);
   const layerChoice=el("mobileLayers").value;
   const layers=layerChoice==="both"?["hybrid","sat"]:[layerChoice];
-  const zmin=10;
+  const zmin=8;
   const tiles=offlineTileSet(radius,zmin,zmax);
   const totalTiles=tiles.length;
   const total=totalTiles*layers.length;
@@ -995,6 +1051,26 @@ async function testExportAccess(layers,tile){
     }
   }
 }
+
+function physicalAreaPoints(){
+  const area=el("physicalArea")?.value||"all";
+  return area==="all" ? POINTS : POINTS.filter(p=>String(p.zona||"")===area);
+}
+function physicalAreaSlug(){
+  const area=el("physicalArea")?.value||"all";
+  return area==="Este"?"este":area==="Oeste"?"oeste":"todos";
+}
+function physicalSuggestedName(){
+  const area=physicalAreaSlug();
+  const z=Number(el("physicalZmax")?.value||17);
+  const r=Number(el("physicalRadius")?.value||2000);
+  return `relevamiento_${area}_z${z}_${r}m.mapdata`;
+}
+function updatePhysicalFilenamePreview(){
+  const x=el("physicalFilenamePreview");
+  if(x) x.textContent=physicalSuggestedName();
+}
+
 async function createPhysicalMapdata(){
   if(physicalBuilding) return;
   if(!POINTS.length){alert("Primero cargá el archivo privado del relevamiento.");return;}
@@ -1009,7 +1085,7 @@ async function createPhysicalMapdata(){
   try{
     handle=await window.showSaveFilePicker({
       id:"relevamiento-zetas-mapdata",
-      suggestedName:"relevamiento_mapa.mapdata",
+      suggestedName:physicalSuggestedName(),
       startIn:"downloads",
       types:[{description:"Mapa offline Relevamiento Zetas",accept:{"application/octet-stream":[".mapdata"]}}]
     });
@@ -1026,17 +1102,27 @@ async function createPhysicalMapdata(){
   }
 
   // Recién después de elegir la ubicación calculamos la cobertura.
+  const area=el("physicalArea").value;
+  const areaPoints=physicalAreaPoints();
+  if(!areaPoints.length){
+    alert("La zona seleccionada no contiene puntos.");
+    return;
+  }
   const radius=Number(el("physicalRadius").value);
   const zmax=Number(el("physicalZmax").value);
-  const zmin=10;
+  const zmin=8;
   const choice=el("physicalLayers").value;
   const layers=choice==="both"?["hybrid","sat"]:[choice];
-  const tiles=offlineTileSet(radius,zmin,zmax);
+  const tiles=offlineTileSet(radius,zmin,zmax,areaPoints);
   const total=tiles.length*layers.length;
   const names=layers.map(x=>x==="hybrid"?"Híbrido":"Imagen aérea").join(" + ");
+  const areaLabel=area==="all"?"Todos":`Solo ${area}`;
 
   // A esta altura todavía no se escribió el archivo.
   const ok=confirm(`Ubicación de guardado seleccionada.
+
+Zona: ${areaLabel} · ${areaPoints.length.toLocaleString()} Zetas.
+Radio: ${radius.toLocaleString()} m · zoom 8–${zmax}.
 
 Se crearán ${tiles.length.toLocaleString()} posiciones de mapa para ${names}.
 
@@ -1106,6 +1192,8 @@ El archivo también debe considerarse confidencial.
       tile_size:256,
       source_name:"IGN Argentina · Argenmap Híbrido + fotografías aéreas",
       source_url:"https://www.ign.gob.ar/NuestrasActividades/InformacionGeoespacial/ServiciosOGC",
+      coverage_area:area,
+      coverage_point_count:areaPoints.length,
       coverage_radius_m:radius,
       zoom_min:zmin,
       zoom_max:zmax,
@@ -1170,6 +1258,10 @@ el("gpsBtn").onclick=startGps;el("nearestBtn").onclick=nearest;
 el("menuBtn").onclick=()=>{const p=el("menuPanel");p.style.display=p.style.display==="block"?"none":"block";};
 el("baseSelect").onchange=e=>{base=e.target.value;localStorage.setItem("relevamientoBase",base);render();};
 el("exportCsv").onclick=exportCsv;el("backupJson").onclick=backup;
+["physicalArea","physicalRadius","physicalZmax"].forEach(id=>{
+  el(id)?.addEventListener("change",updatePhysicalFilenamePreview);
+});
+updatePhysicalFilenamePreview();
 el("createPhysicalMap").onclick=createPhysicalMapdata;
 el("stopPhysicalMap").onclick=stopPhysicalMapdata;
 el("prepareMobileOffline").onclick=prepareMobileOffline;

@@ -1,4 +1,4 @@
-# Relevamiento Zetas — V8.2 · Archivo físico offline
+# Relevamiento Zetas — V8.4 · Zonas offline
 
 Esta versión mantiene los datos del relevamiento separados de la web pública y agrega un segundo sistema offline más robusto:
 
@@ -48,3 +48,34 @@ Se corrigió el error en Android/Brave:
 
 Ahora `showSaveFilePicker()` se ejecuta inmediatamente al tocar el botón,
 antes de cualquier confirmación, cálculo o operación asíncrona.
+
+
+## Corrección V8.3 — vistas generales offline
+
+Los paquetes anteriores creados con zoom 10–16 siguen siendo compatibles.
+
+Si la aplicación necesita mostrar zoom 9, 8 o 7 para encuadrar muchos puntos,
+ahora reutiliza las teselas del zoom mínimo almacenado y las reduce visualmente,
+en vez de dejar el fondo vacío.
+
+Los paquetes nuevos incluyen zoom 8 y 9 además de los niveles de detalle seleccionados.
+
+
+## Mejora V8.4 — paquetes por zona
+
+Al crear el `.mapdata` ahora se puede elegir:
+- Todos
+- Solo Este
+- Solo Oeste
+
+El radio recomendado predeterminado pasó a 2.000 m.
+El zoom recomendado sigue siendo 17.
+
+Nombres sugeridos:
+- `relevamiento_este_z17_2000m.mapdata`
+- `relevamiento_oeste_z17_2000m.mapdata`
+
+Cada archivo incluye solamente las teselas necesarias alrededor de los puntos de la zona elegida.
+Esto reduce el tamaño frente a un paquete único de todo el relevamiento.
+
+Los `.mapdata` de versiones anteriores siguen siendo compatibles.
