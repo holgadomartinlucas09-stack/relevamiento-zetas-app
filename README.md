@@ -1,4 +1,4 @@
-# Relevamiento Zetas — V8.8 · Generador PC rápido
+# Relevamiento Zetas — V9 · Delimitador por polígono
 
 Esta versión mantiene los datos del relevamiento separados de la web pública y agrega un segundo sistema offline más robusto:
 
@@ -125,3 +125,29 @@ Recomendación para una notebook potente:
 - Descargas: 12 simultáneas
 - CPU: 4 conversiones
 - WebP: activado si querés reducir tamaño; desactivado si priorizás velocidad.
+
+
+## Correcciones V8.9
+
+- Al abrir un `.mapdata`, desaparece inmediatamente el aviso "abrí tu archivo".
+- Se fuerza un render final al terminar de arrastrar el mapa, evitando teselas que desaparecen hasta hacer zoom.
+- El panel del paquete muestra teselas planificadas, guardadas, fallidas y si el paquete quedó parcial.
+- `Solo imagen aérea` muestra una advertencia: la cobertura `mosaicos_vuelos` del IGN no es continua.
+- Para campo se recomienda `Híbrido + imagen aérea`; el híbrido funciona como respaldo en zonas sin ortofoto.
+
+
+## V9 — Delimitador por polígono
+
+Método recomendado para crear `.mapdata`:
+1. Elegir `Polígono dibujado`.
+2. Pulsar `Dibujar`.
+3. Marcar los vértices sobre el mapa.
+4. Pulsar `Cerrar área`.
+5. Revisar superficie aproximada.
+6. Generar el `.mapdata`.
+
+El cálculo incluye solamente las teselas que intersectan el polígono.
+No es necesario cargar el JSON privado de Zetas para generar un mapa delimitado.
+
+El delimitador se puede guardar y recuperar localmente en el navegador.
+El modo anterior por Zetas + radio sigue disponible.
