@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<title>Relevamiento Zetas · V7 Confidencial</title>
+<style>
+:root {
+  --bg:#0f172a; --panel:#ffffff; --text:#0f172a; --muted:#64748b;
+  --east:#f59e0b; --west:#7c3aed; --done:#16a34a; --danger:#dc2626;
+  --shadow:0 8px 24px rgba(15,23,42,.18);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#e2e8f0;color:var(--text);overflow:hidden}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+#app{height:100%;display:flex;flex-direction:column}
+header{height:58px;background:var(--bg);color:white;display:flex;align-items:center;gap:10px;padding:8px 10px;z-index:20}
+.brand{font-weight:800;white-space:nowrap}
+.stats{display:flex;gap:6px;font-size:12px;margin-left:auto}
+.badge{padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.12)}
+#net{font-weight:700}
+.toolbar{position:absolute;z-index:30;top:68px;left:10px;right:10px;display:flex;gap:6px;align-items:center;pointer-events:none}
+.toolbar>*{pointer-events:auto}
+.search{flex:1;display:flex;background:white;border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.search input{border:0;outline:none;padding:12px 12px;flex:1;min-width:0}
+.search button{border:0;background:white;padding:0 13px;font-weight:700}
+.chipbar{position:absolute;z-index:30;top:118px;left:10px;right:10px;display:flex;gap:6px;overflow:auto;padding-bottom:4px}
+.chip{border:0;border-radius:999px;padding:8px 11px;background:white;box-shadow:0 3px 10px rgba(15,23,42,.12);white-space:nowrap;font-size:13px}
+.chip.active{background:#0f172a;color:white}
+#map{position:relative;flex:1;background:#cbd5e1;overflow:hidden;touch-action:none}
+.tile{position:absolute;width:256px;height:256px;user-select:none;-webkit-user-drag:none}.tile-base{z-index:1}.tile-ref{z-index:2}.tile-streets{z-index:1}
+.marker{position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:0;z-index:7}
+.marker.east{background:var(--east)}
+.marker.west{background:var(--west)}
+.marker.done{background:var(--done)}
+.marker.selected{width:30px;height:30px;outline:3px solid rgba(15,23,42,.35);z-index:9}
+.marker.me{background:#2563eb;width:20px;height:20px;border:4px solid white;z-index:10}
+.map-controls{position:absolute;z-index:31;right:10px;bottom:110px;display:flex;flex-direction:column;gap:7px}
+.map-btn{width:46px;height:46px;border:0;border-radius:14px;background:white;box-shadow:var(--shadow);font-size:20px;font-weight:800}
+.map-btn.small{font-size:14px}
+.attribution{position:absolute;z-index:12;right:4px;bottom:4px;background:rgba(255,255,255,.8);padding:2px 5px;border-radius:4px;font-size:10px;color:#334155}
+.offline-note{position:absolute;z-index:14;left:50%;transform:translateX(-50%);top:165px;background:#fff7ed;color:#9a3412;padding:8px 12px;border-radius:12px;box-shadow:var(--shadow);font-size:12px;display:none;max-width:85%;text-align:center}
+#sheet{position:absolute;z-index:40;left:8px;right:8px;bottom:8px;background:white;border-radius:18px;box-shadow:var(--shadow);padding:14px;display:none;max-height:52vh;overflow:auto}
+.sheet-head{display:flex;align-items:flex-start;gap:8px}
+.sheet-title{font-weight:900;font-size:20px}
+.sheet-sub{font-size:13px;color:var(--muted);margin-top:2px}
+.close{margin-left:auto;border:0;background:#e2e8f0;width:34px;height:34px;border-radius:10px;font-size:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.btn{border:0;border-radius:12px;padding:11px 12px;font-weight:800}
+.btn.primary{background:#0f172a;color:white}
+.btn.good{background:#dcfce7;color:#166534}
+.btn.warn{background:#fee2e2;color:#991b1b}
+.btn.soft{background:#f1f5f9;color:#0f172a}
+textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;border-radius:12px;padding:10px;resize:vertical}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:13px}
+.meta div{background:#f8fafc;border-radius:10px;padding:9px}
+.panel{position:absolute;z-index:35;top:163px;left:10px;background:white;border-radius:14px;box-shadow:var(--shadow);padding:10px;display:none;width:min(300px,calc(100% - 20px))}
+.panel label{display:block;font-size:12px;color:var(--muted);margin:6px 0 3px}
+.panel select,.panel button{width:100%;border:1px solid #cbd5e1;background:white;border-radius:10px;padding:9px}
+.panel .row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+.empty{position:absolute;z-index:13;left:50%;top:50%;transform:translate(-50%,-50%);background:white;padding:10px 14px;border-radius:12px;display:none}
+@media (max-width:520px){
+  .brand{font-size:14px}
+  .stats .badge:nth-child(1){display:none}
+}
+
+.offline-card{margin-top:10px;border:1px solid #dbeafe;background:#eff6ff;border-radius:12px;padding:10px}
+.offline-card h3{font-size:13px;margin:0 0 7px}
+.offline-card .smalltxt{font-size:11px;color:#475569;line-height:1.35}
+.offline-card .fields{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.offline-card select,.offline-card button{width:100%;border:1px solid #cbd5e1;background:white;border-radius:10px;padding:9px}
+.progress{height:10px;background:#dbeafe;border-radius:999px;overflow:hidden;margin-top:8px}
+.progress>div{height:100%;width:0%;background:#2563eb;transition:width .15s}
+.progressline{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#475569;margin-top:5px}
+.status-ok{color:#166534}.status-warn{color:#9a3412}.status-bad{color:#991b1b}
+
+
+.private-card{margin-top:10px;border:1px solid #c4b5fd;background:#f5f3ff;border-radius:12px;padding:10px}
+.private-card h3{font-size:13px;margin:0 0 7px}
+.private-card .smalltxt{font-size:11px;color:#475569;line-height:1.35}
+.private-status{font-size:11px;margin-top:7px;padding:8px;background:white;border-radius:9px;border:1px solid #ddd6fe}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">Relevamiento Zetas · V7 Confidencial</div>
+    <div class="stats">
+      <div class="badge">Total <b id="totalCount">0</b></div>
+      <div class="badge">Pend. <b id="pendingCount">0</b></div>
+      <div class="badge">Hechos <b id="doneCount">0</b></div>
+      <div class="badge" id="imgMode">HÍBRIDO</div><div class="badge" id="net">Online</div>
+    </div>
+  </header>
+
+  <div id="map">
+    <div class="toolbar">
+      <div class="search">
+        <input id="searchInput" placeholder="Buscar Zeta, ej. Z0000" autocomplete="off">
+        <button id="searchBtn">Ir</button>
+      </div>
+      <button class="map-btn small" id="menuBtn" title="Opciones">☰</button>
+    </div>
+
+    <div class="chipbar">
+      <button class="chip active" data-filter="all">Todos</button>
+      <button class="chip" data-filter="Este">Este</button>
+      <button class="chip" data-filter="Oeste">Oeste</button>
+      <button class="chip" data-filter="pending">Pendientes</button>
+      <button class="chip" data-filter="done">Relevados</button>
+    </div>
+
+    <div class="panel" id="menuPanel">
+      <div class="private-card">
+        <h3>🔒 Relevamiento privado</h3>
+        <div class="smalltxt">
+          Esta web no contiene coordenadas. Cargá tu archivo privado desde el celular.
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="loadPrivateData">Cargar relevamiento</button>
+          <button id="forgetPrivateData">Olvidar datos</button>
+        </div>
+        <input id="privateDataFile" type="file" accept=".json,application/json" hidden>
+        <div id="privateDataStatus" class="private-status">Sin relevamiento cargado.</div>
+      </div>
+
+      <label>Fondo</label>
+      <select id="baseSelect">
+        <option value="hybrid">Híbrido · satélite + caminos</option>
+        <option value="sat">Solo satélite</option>
+        <option value="streets">Solo calles</option>
+      </select>
+      <label>Origen de los mapas</label>
+      <select id="sourceSelect">
+        <option value="auto">Automático</option>
+        <option value="mobile">Offline guardado en este celular</option>
+        <option value="offline">Archivo .mapdata</option>
+        <option value="online">Online</option>
+      </select>
+
+      <div id="httpsBanner" style="display:none;margin-top:10px;padding:10px;border-radius:12px;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;font-size:12px;line-height:1.4">
+        <b>Para descargar el mapa offline en Android:</b><br>
+        esta misma carpeta debe publicarse en una dirección <b>HTTPS</b>. Abrir <code>index.html</code> desde Descargas/Archivos no permite usar Service Workers.
+      </div>
+      <div class="offline-card">
+        <h3>📱 Preparar mapa offline en este celular</h3>
+        <div class="smalltxt" id="mobileOfflineSupport">
+          Comprobando compatibilidad del navegador...
+        </div>
+        <div class="fields">
+          <div>
+            <label>Radio alrededor de cada Zeta</label>
+            <select id="mobileRadius">
+              <option value="500">500 m</option>
+              <option value="750">750 m</option>
+              <option value="1000" selected>1.000 m</option>
+            </select>
+          </div>
+          <div>
+            <label>Zoom máximo</label>
+            <select id="mobileZmax">
+              <option value="16">16</option>
+              <option value="17" selected>17</option>
+              <option value="18">18</option>
+            </select>
+          </div>
+        </div>
+        <div class="progress"><div id="mobileProgressBar"></div></div>
+        <div class="progressline">
+          <span id="mobileProgressText">Sin iniciar</span>
+          <span id="mobileStorageText">—</span>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="prepareMobileOffline">Descargar / reanudar</button>
+          <button id="pauseMobileOffline">Pausar</button>
+        </div>
+        <div class="row">
+          <button id="checkMobileOffline">Ver estado</button>
+          <button id="clearMobileOffline">Borrar mapa del celular</button>
+        </div>
+        <div class="smalltxt" style="margin-top:7px">
+          La descarga se guarda en la caché privada del navegador. Si ya existen teselas, se reutilizan.
+          Para descargar en Android esta página debe abrirse desde <b>HTTPS</b>, no como archivo local.
+        </div>
+      </div>
+      <div class="row">
+        <button id="loadMapdata">Cargar mapa offline</button>
+        <button id="unloadMapdata">Cerrar paquete</button>
+      </div>
+      <input id="mapdataFile" type="file" accept=".mapdata,application/octet-stream" hidden>
+      <div id="packageStatus" style="font-size:11px;color:#475569;margin-top:7px;padding:8px;background:#f8fafc;border-radius:9px">
+        Paquete offline: no cargado.
+      </div>
+      <div style="font-size:11px;color:#64748b;margin-top:6px">
+        Híbrido es el modo predeterminado. En Android podés guardar Argenmap Híbrido directamente en la caché offline del navegador; el archivo <b>.mapdata</b> queda como alternativa.
+      </div>
+      <div class="row">
+        <button id="exportCsv">Exportar CSV</button>
+        <button id="backupJson">Respaldo JSON</button>
+      </div>
+      <div class="row">
+        <button id="restoreJson">Restaurar</button>
+        <button id="resetProgress">Reiniciar avance</button>
+      </div>
+      <input id="restoreFile" type="file" accept="application/json" hidden>
+      <div style="font-size:11px;color:#64748b;margin-top:8px">
+        Los estados y notas se guardan en este navegador. El .mapdata de Argenmap Híbrido se lee por partes: aunque ronde 1 GB, no se carga completo en RAM.
+      </div>
+    </div>
+
+    <div class="map-controls">
+      <button class="map-btn" id="zoomIn">+</button>
+      <button class="map-btn" id="zoomOut">−</button>
+      <button class="map-btn small" id="fitBtn">TOD</button>
+      <button class="map-btn small" id="gpsBtn">GPS</button>
+      <button class="map-btn small" id="nearestBtn">CER</button>
+    </div>
+
+    <div id="offlineNote" class="offline-note">Sin conexión: cargá el archivo .mapdata para ver el fondo híbrido. Los puntos, estados, notas y GPS siguen disponibles.</div>
+    <div class="empty" id="emptyMsg">No hay puntos con este filtro.</div>
+    <div class="attribution" id="attrib">FUENTE: Instituto Geográfico Nacional de la República Argentina</div>
+  </div>
+
+  <div id="sheet">
+    <div class="sheet-head">
+      <div>
+        <div class="sheet-title" id="sheetTitle"></div>
+        <div class="sheet-sub" id="sheetSub"></div>
+      </div>
+      <button class="close" id="closeSheet">×</button>
+    </div>
+    <div class="meta">
+      <div><b>Zona</b><br><span id="mZone"></span></div>
+      <div><b>Estado</b><br><span id="mStatus"></span></div>
+      <div><b>Distancia</b><br><span id="mDistance">—</span></div>
+      <div><b>Coordenadas</b><br><span id="mCoords"></span></div>
+    </div>
+    <textarea id="note" placeholder="Observaciones del relevamiento..."></textarea>
+    <div class="grid2">
+      <button class="btn primary" id="toggleDone"></button>
+      <button class="btn soft" id="saveNote">Guardar nota</button>
+      <button class="btn soft" id="copyCoords">Copiar coordenadas</button>
+      <button class="btn soft" id="openMaps">Abrir en Google Maps</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let POINTS = [];
+const TILE=256;
+let center={lat:-34.6177,lon:-68.3301}, zoom=11, base="hybrid", sourceMode="auto", activeFilter="all";
+let selectedId=null, gpsPos=null, gpsWatch=null, drag=null, raf=0;
+let mapPackageFile=null, mapPackageHeader=null, mapPackageDataStart=0, mapPackageName="";
+let swReady=false, mobileDownloadPaused=false, wakeLock=null;
+const MOBILE_TILE_CACHE="zetas-argenmap-hybrid-v1";
+const MOBILE_SW_ROUTE="__ign_hybrid/";
+
+let renderSerial=0;
+const MAPDATA_MAGIC_V1="ZMAPDAT1"; const MAPDATA_MAGIC_V2="ZMAPDT02"; const MAPDATA_FOOTER_V2="ZMAPEND2";
+const el=id=>document.getElementById(id);
+const map=el("map");
+let state={};
+try{ state=JSON.parse(localStorage.getItem("relevamientoZetasStateV1")||"{}")||{}; }catch(e){state={}}
+
+function saveState(){localStorage.setItem("relevamientoZetasStateV1",JSON.stringify(state)); updateStats();}
+
+const PRIVATE_DATA_KEY="relevamientoZetasPrivateDataV7";
+
+function validatePrivatePayload(data){
+  if(!data || typeof data!=="object") throw new Error("Archivo JSON inválido.");
+  const arr = Array.isArray(data) ? data : data.points;
+  if(!Array.isArray(arr)) throw new Error("El archivo no contiene una lista de puntos.");
+  if(!arr.length) throw new Error("El archivo no contiene puntos.");
+  const clean = arr.map((p,i)=>{
+    const id=String(p.id??p.zeta??p.nombre??"").trim();
+    const lat=Number(p.lat??p.latitude??p.latitud);
+    const lon=Number(p.lon??p.lng??p.longitude??p.longitud);
+    const zona=String(p.zona??p.zone??"").trim() || "Sin zona";
+    if(!id || !Number.isFinite(lat) || !Number.isFinite(lon)){
+      throw new Error(`Punto inválido en posición ${i+1}.`);
+    }
+    return {id,lat,lon,zona};
+  });
+  return clean;
+}
+function savePrivatePoints(){
+  localStorage.setItem(PRIVATE_DATA_KEY, JSON.stringify({version:1,points:POINTS}));
+}
+function loadPrivatePointsFromStorage(){
+  try{
+    const raw=localStorage.getItem(PRIVATE_DATA_KEY);
+    if(!raw) return false;
+    const parsed=JSON.parse(raw);
+    POINTS=validatePrivatePayload(parsed);
+    return true;
+  }catch(e){
+    localStorage.removeItem(PRIVATE_DATA_KEY);
+    POINTS=[];
+    return false;
+  }
+}
+function updatePrivateDataStatus(){
+  const st=el("privateDataStatus");
+  if(!POINTS.length){
+    st.innerHTML='<span class="status-warn">Sin relevamiento cargado.</span>';
+    return;
+  }
+  const east=POINTS.filter(p=>p.zona==="Este").length;
+  const west=POINTS.filter(p=>p.zona==="Oeste").length;
+  st.innerHTML=`<b>${POINTS.length.toLocaleString()} puntos cargados</b><br>Este: ${east} · Oeste: ${west}<br><span style="color:#64748b">Guardados solo en este navegador.</span>`;
+}
+async function importPrivateData(file){
+  if(!file) return;
+  try{
+    const txt=await file.text();
+    const data=JSON.parse(txt);
+    POINTS=validatePrivatePayload(data);
+    savePrivatePoints();
+    selectedId=null;
+    el("sheet").style.display="none";
+    updatePrivateDataStatus();
+    updateStats();
+    fit(POINTS);
+    alert(`Relevamiento cargado: ${POINTS.length} puntos.`);
+  }catch(e){
+    alert("No pude cargar el relevamiento:\n"+e.message);
+  }
+}
+function forgetPrivateData(){
+  if(!confirm("¿Quitar del navegador las coordenadas y zonas del relevamiento privado? Los estados/notas seguirán guardados salvo que los reinicies por separado.")) return;
+  localStorage.removeItem(PRIVATE_DATA_KEY);
+  POINTS=[];
+  selectedId=null;
+  el("sheet").style.display="none";
+  updatePrivateDataStatus();
+  updateStats();
+  render();
+}
+
+function rec(id){ if(!state[id]) state[id]={done:false,note:"",updated:null}; return state[id]; }
+function rad(d){return d*Math.PI/180}
+function project(lat,lon,z){
+  const n=Math.pow(2,z), s=TILE*n;
+  const x=(lon+180)/360*s;
+  const sin=Math.sin(rad(Math.max(-85.0511,Math.min(85.0511,lat))));
+  const y=(0.5-Math.log((1+sin)/(1-sin))/(4*Math.PI))*s;
+  return {x,y};
+}
+function unproject(x,y,z){
+  const n=Math.pow(2,z), s=TILE*n;
+  const lon=x/s*360-180;
+  const y2=0.5-y/s;
+  const lat=90-360*Math.atan(Math.exp(-y2*2*Math.PI))/Math.PI;
+  return {lat,lon};
+}
+function hav(a,b){
+  const R=6371000,dLat=rad(b.lat-a.lat),dLon=rad(b.lon-a.lon);
+  const q=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(q));
+}
+function fmtDist(m){ if(m==null||!isFinite(m))return "—"; return m<1000?Math.round(m)+" m":(m/1000).toFixed(1)+" km"; }
+function visiblePoints(){
+  return POINTS.filter(p=>{
+    const r=rec(p.id);
+    if(activeFilter==="Este"||activeFilter==="Oeste") return p.zona===activeFilter;
+    if(activeFilter==="pending") return !r.done;
+    if(activeFilter==="done") return !!r.done;
+    return true;
+  });
+}
+function effectiveSource(){
+  if(sourceMode==="online") return "online";
+  if(sourceMode==="mobile") return "mobile";
+  if(sourceMode==="offline") return "offline";
+  // Auto: prefer browser cache if the service worker is active; then .mapdata; otherwise network.
+  if(swReady) return "mobile";
+  if(mapPackageFile && mapPackageHeader) return "offline";
+  return navigator.onLine ? "online" : "offline";
+}
+function onlineTileUrl(kind,z,x,y){
+  if(kind==="hybrid"){
+    const tmsY=(Math.pow(2,z)-1-y);
+    return `https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/mapabase_hibrido@EPSG%3A3857@png/${z}/${x}/${tmsY}.png`;
+  }
+  if(kind==="sat") return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  if(kind==="streets") return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+  return "";
+}
+
+function mobileTileUrl(z,x,y){
+  return new URL(`${MOBILE_SW_ROUTE}${z}/${x}/${y}.png`, location.href).href;
+}
+function addTile(url,left,top,cls){
+  const im=document.createElement("img");
+  im.className="tile "+cls; im.draggable=false;
+  im.src=url;
+  im.style.left=left+"px"; im.style.top=top+"px";
+  im.onerror=()=>im.remove();
+  map.appendChild(im);
+}
+function packageKey(kind,z,x,y){
+  const layer = kind==="sat" ? "sat" : kind;
+  return `${layer}/${z}/${x}/${y}`;
+}
+async function addPackageTile(kind,z,x,y,left,top,cls,serial){
+  if(!mapPackageFile || !mapPackageHeader || !mapPackageHeader.tiles) return;
+  const key=packageKey(kind,z,x,y);
+  const info=mapPackageHeader.tiles[key];
+  if(!info) return;
+  const offset=Number(info[0]), length=Number(info[1]), mime=info[2]||"application/octet-stream";
+  try{
+    const blob=mapPackageFile.slice(mapPackageDataStart+offset,mapPackageDataStart+offset+length,mime);
+    const url=URL.createObjectURL(blob);
+    if(serial!==renderSerial){ URL.revokeObjectURL(url); return; }
+    const im=document.createElement("img");
+    im.className="tile "+cls; im.draggable=false;
+    im.src=url; im.style.left=left+"px"; im.style.top=top+"px";
+    im.onload=()=>URL.revokeObjectURL(url);
+    im.onerror=()=>{URL.revokeObjectURL(url);im.remove();};
+    map.appendChild(im);
+  }catch(e){}
+}
+async function loadMapdataFile(file){
+  if(!file) return;
+  try{
+    const first8=new Uint8Array(await file.slice(0,8).arrayBuffer());
+    const magic=new TextDecoder().decode(first8);
+    let header=null, dataStart=0;
+
+    if(magic===MAPDATA_MAGIC_V1){
+      const prefix=await file.slice(0,16).arrayBuffer();
+      const dv=new DataView(prefix);
+      const headerLen=Number(dv.getBigUint64(8,true));
+      if(!Number.isFinite(headerLen) || headerLen<2 || headerLen>50_000_000) throw new Error("Cabecera inválida.");
+      header=JSON.parse(await file.slice(16,16+headerLen).text());
+      dataStart=16+headerLen;
+    }else if(magic===MAPDATA_MAGIC_V2){
+      if(file.size<24) throw new Error("Paquete V2 incompleto.");
+      const footerBuf=await file.slice(file.size-16,file.size).arrayBuffer();
+      const footerBytes=new Uint8Array(footerBuf);
+      const footerMagic=new TextDecoder().decode(footerBytes.slice(0,8));
+      if(footerMagic!==MAPDATA_FOOTER_V2) throw new Error("Pie del paquete V2 inválido.");
+      const fdv=new DataView(footerBuf);
+      const indexLen=Number(fdv.getBigUint64(8,true));
+      if(!Number.isFinite(indexLen) || indexLen<2 || indexLen>100_000_000 || indexLen>file.size-24) throw new Error("Índice V2 inválido.");
+      const indexStart=file.size-16-indexLen;
+      header=JSON.parse(await file.slice(indexStart,file.size-16).text());
+      dataStart=8;
+    }else{
+      throw new Error("Formato .mapdata no reconocido.");
+    }
+
+    if(!header || !header.tiles) throw new Error("Índice de teselas no válido.");
+    mapPackageFile=file;
+    mapPackageHeader=header;
+    mapPackageDataStart=dataStart;
+    mapPackageName=file.name;
+
+    const mb=(file.size/1024/1024).toFixed(file.size>100*1024*1024?0:1);
+    const n=header.tile_count ?? Object.keys(header.tiles).length;
+    const ztxt=(header.zoom_min!=null && header.zoom_max!=null)?` · zoom ${header.zoom_min}–${header.zoom_max}`:"";
+    const source=header.source_name?`<br>${header.source_name}`:"";
+    el("packageStatus").innerHTML=`<b>${file.name}</b><br>${mb} MB · ${Number(n).toLocaleString()} teselas${ztxt}${source}`;
+    if(sourceMode==="auto" || sourceMode==="offline") render();
+  }catch(err){
+    mapPackageFile=null; mapPackageHeader=null; mapPackageDataStart=0; mapPackageName="";
+    el("packageStatus").textContent="Paquete offline: no cargado.";
+    alert("No pude abrir el paquete:\n"+err.message);
+  }
+}
+function unloadMapdata(){
+  mapPackageFile=null; mapPackageHeader=null; mapPackageDataStart=0; mapPackageName="";
+  el("mapdataFile").value="";
+  el("packageStatus").textContent="Paquete offline: no cargado.";
+  render();
+}
+function updateMapModeBadge(){
+  const b = base==="hybrid" ? "HÍBRIDO" : base==="sat" ? "SAT" : "CALLES";
+  const es=effectiveSource();
+  const src = es==="mobile" ? " · MÓVIL" : es==="offline" ? " · ARCH" : " · ON";
+  el("imgMode").textContent=b+src;
+}
+function render(){
+  cancelAnimationFrame(raf);
+  const serial=++renderSerial;
+  raf=requestAnimationFrame(()=>{
+    map.querySelectorAll(".tile,.marker").forEach(n=>n.remove());
+    const w=map.clientWidth,h=map.clientHeight;
+    const cw=project(center.lat,center.lon,zoom), left=cw.x-w/2, top=cw.y-h/2;
+    const src=effectiveSource();
+    const n=Math.pow(2,zoom), x0=Math.floor(left/TILE), x1=Math.floor((left+w)/TILE), y0=Math.floor(top/TILE), y1=Math.floor((top+h)/TILE);
+
+    for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
+      if(ty<0||ty>=n) continue;
+      const wrapped=((tx%n)+n)%n;
+      const px=tx*TILE-left, py=ty*TILE-top;
+
+      if(src==="mobile"){
+        if(base==="hybrid"){
+          addTile(mobileTileUrl(zoom,wrapped,ty),px,py,"tile-base");
+        }else if(base==="sat"){
+          // La caché móvil usa Argenmap Híbrido; para satélite puro se mantiene la fuente online.
+          if(navigator.onLine) addTile(onlineTileUrl("sat",zoom,wrapped,ty),px,py,"tile-base");
+        }else{
+          if(navigator.onLine) addTile(onlineTileUrl("streets",zoom,wrapped,ty),px,py,"tile-streets");
+        }
+      }else if(src==="online"){
+        if(base==="hybrid"){
+          addTile(onlineTileUrl("hybrid",zoom,wrapped,ty),px,py,"tile-base");
+        }else if(base==="sat"){
+          addTile(onlineTileUrl("sat",zoom,wrapped,ty),px,py,"tile-base");
+        }else{
+          addTile(onlineTileUrl("streets",zoom,wrapped,ty),px,py,"tile-streets");
+        }
+      }else{
+        if(base==="hybrid"){
+          if(mapPackageHeader?.layer_counts?.hybrid || mapPackageHeader?.tiles?.[`hybrid/${zoom}/${wrapped}/${ty}`]){
+            addPackageTile("hybrid",zoom,wrapped,ty,px,py,"tile-base",serial);
+          }else{
+            addPackageTile("sat",zoom,wrapped,ty,px,py,"tile-base",serial);
+            addPackageTile("reference",zoom,wrapped,ty,px,py,"tile-ref",serial);
+          }
+        }else if(base==="sat"){
+          addPackageTile("sat",zoom,wrapped,ty,px,py,"tile-base",serial);
+        }else{
+          addPackageTile("streets",zoom,wrapped,ty,px,py,"tile-streets",serial);
+        }
+      }
+    }
+
+    const pts=visiblePoints();
+    el("emptyMsg").style.display=pts.length?"none":"block";
+    for(const p of pts){
+      const q=project(p.lat,p.lon,zoom), x=q.x-left,y=q.y-top;
+      if(x<-30||y<-30||x>w+30||y>h+30) continue;
+      const m=document.createElement("button");
+      const r=rec(p.id);
+      m.className="marker "+(r.done?"done":(p.zona==="Este"?"east":"west"))+(p.id===selectedId?" selected":"");
+      m.style.left=x+"px"; m.style.top=y+"px"; m.title=p.id+" · "+p.zona;
+      m.addEventListener("pointerdown",e=>e.stopPropagation());
+      m.onclick=e=>{e.stopPropagation(); openPoint(p.id);};
+      map.appendChild(m);
+    }
+    if(gpsPos){
+      const q=project(gpsPos.lat,gpsPos.lon,zoom), x=q.x-left,y=q.y-top;
+      const m=document.createElement("div"); m.className="marker me"; m.style.left=x+"px";m.style.top=y+"px";m.title="Mi ubicación";map.appendChild(m);
+    }
+
+    if(src==="mobile"){
+      el("attrib").textContent=base==="hybrid"?"FUENTE: Instituto Geográfico Nacional de la República Argentina · caché móvil":"Caché móvil";
+    }else if(src==="offline"){
+      el("attrib").textContent=mapPackageFile&&base==="hybrid"?"FUENTE: Instituto Geográfico Nacional de la República Argentina":mapPackageFile?(base==="sat"?"Paquete local · satélite":"Paquete local · calles"):"Offline · sin paquete";
+    }else{
+      el("attrib").textContent=base==="hybrid"?"FUENTE: Instituto Geográfico Nacional de la República Argentina":base==="sat"?"Esri World Imagery":"© OpenStreetMap contributors";
+    }
+    updateMapModeBadge();
+  });
+}
+function updateStats(){
+  const done=POINTS.filter(p=>rec(p.id).done).length;
+  el("totalCount").textContent=POINTS.length;
+  el("doneCount").textContent=done;
+  el("pendingCount").textContent=POINTS.length-done;
+}
+function openPoint(id){
+  selectedId=id; const p=POINTS.find(x=>x.id===id); if(!p)return;
+  const r=rec(id);
+  el("sheetTitle").textContent=p.id;
+  el("sheetSub").textContent=r.updated?("Último cambio: "+new Date(r.updated).toLocaleString()):"Sin cambios registrados";
+  el("mZone").textContent=p.zona;
+  el("mStatus").textContent=r.done?"Relevado":"Pendiente";
+  el("mCoords").textContent=p.lat.toFixed(6)+", "+p.lon.toFixed(6);
+  el("mDistance").textContent=gpsPos?fmtDist(hav(gpsPos,p)):"—";
+  el("note").value=r.note||"";
+  el("toggleDone").textContent=r.done?"Marcar pendiente":"Marcar relevado";
+  el("toggleDone").className="btn "+(r.done?"warn":"good");
+  el("sheet").style.display="block"; render();
+}
+function closePoint(){selectedId=null;el("sheet").style.display="none";render();}
+function goTo(p,z=16){center={lat:p.lat,lon:p.lon};zoom=Math.max(7,Math.min(19,z));render();}
+function fit(points=visiblePoints()){
+  if(!points.length){ render(); return; }
+  let minLat=90,maxLat=-90,minLon=180,maxLon=-180;
+  points.forEach(p=>{minLat=Math.min(minLat,p.lat);maxLat=Math.max(maxLat,p.lat);minLon=Math.min(minLon,p.lon);maxLon=Math.max(maxLon,p.lon);});
+  const w=Math.max(200,map.clientWidth-60),h=Math.max(200,map.clientHeight-180);
+  center={lat:(minLat+maxLat)/2,lon:(minLon+maxLon)/2};
+  for(let z=18;z>=5;z--){
+    const a=project(maxLat,minLon,z),b=project(minLat,maxLon,z);
+    if(Math.abs(b.x-a.x)<=w&&Math.abs(b.y-a.y)<=h){zoom=z;break;}
+  }
+  render();
+}
+function search(){
+  if(!POINTS.length){ alert("Primero cargá el archivo privado del relevamiento."); return; }
+  const q=el("searchInput").value.trim().toUpperCase(); if(!q)return;
+  let p=POINTS.find(x=>x.id.toUpperCase()===q);
+  if(!p)p=POINTS.find(x=>x.id.toUpperCase().includes(q));
+  if(!p){alert("No encontré ese punto.");return;}
+  goTo(p,17);openPoint(p.id);
+}
+function updateNet(){
+  const on=navigator.onLine; el("net").textContent=on?"Online":"Offline";
+  el("offlineNote").style.display=on?"none":"block";
+  if(sourceMode==="auto") render();
+}
+function startGps(){
+  if(!navigator.geolocation){alert("Este navegador no ofrece GPS.");return;}
+  if(gpsWatch!=null){navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;el("gpsBtn").textContent="GPS";return;}
+  gpsWatch=navigator.geolocation.watchPosition(pos=>{
+    gpsPos={lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy};
+    el("gpsBtn").textContent="GPS✓";
+    if(selectedId)openPoint(selectedId); else render();
+  },err=>{
+    alert("No se pudo acceder a la ubicación. Revisá el permiso de ubicación del navegador.\n\n"+err.message);
+    gpsWatch=null;
+  },{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+}
+function nearest(){
+  if(!POINTS.length){alert("Primero cargá el archivo privado del relevamiento.");return;}
+  if(!gpsPos){startGps();alert("Activá el GPS y volvé a tocar CER cuando aparezca GPS✓.");return;}
+  const candidates=POINTS.filter(p=>!rec(p.id).done && (activeFilter!=="Este"&&activeFilter!=="Oeste" || p.zona===activeFilter));
+  if(!candidates.length){alert("No quedan puntos pendientes con el filtro actual.");return;}
+  let best=candidates[0],d=hav(gpsPos,best);
+  for(const p of candidates){const x=hav(gpsPos,p);if(x<d){d=x;best=p;}}
+  goTo(best,17);openPoint(best.id);
+}
+function download(name,text,type){
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+function isSecureForOffline(){
+  const originOk = location.origin && location.origin !== "null";
+  const protocolOk = location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  return !!(window.isSecureContext && originOk && protocolOk);
+}
+async function registerOfflineWorker(){
+  const msg=el("mobileOfflineSupport");
+  if(!("serviceWorker" in navigator)){
+    msg.innerHTML='<span class="status-bad">Este navegador no admite Service Worker.</span>';
+    return false;
+  }
+  if(!isSecureForOffline()){
+    msg.innerHTML='<span class="status-warn"><b>Modo offline móvil bloqueado por el navegador.</b><br>Esta página se abrió como archivo local o con origen <code>null</code>. Para guardar el mapa en el celular debe abrirse desde una URL <b>https://</b> real. Las coordenadas privadas nunca necesitan publicarse.</span>';
+    return false;
+  }
+  try{
+    const reg=await navigator.serviceWorker.register("./sw.js",{scope:"./"});
+    await navigator.serviceWorker.ready;
+    if(!navigator.serviceWorker.controller){
+      await new Promise(resolve=>{
+        navigator.serviceWorker.addEventListener("controllerchange",()=>resolve(),{once:true});
+        setTimeout(resolve,1500);
+      });
+    }
+    swReady=true;
+    msg.innerHTML='<span class="status-ok">✓ Modo offline móvil disponible.</span>';
+    await requestPersistentStorage();
+    await updateMobileStorageInfo();
+    updateMapModeBadge();
+    return true;
+  }catch(e){
+    msg.innerHTML='<span class="status-bad"><b>No se pudo activar el modo offline.</b><br>'+String(e.message||e)+'</span>';
+    return false;
+  }
+}
+async function requestPersistentStorage(){
+  try{
+    if(navigator.storage?.persist) await navigator.storage.persist();
+  }catch(e){}
+}
+async function updateMobileStorageInfo(){
+  try{
+    if(!navigator.storage?.estimate) return;
+    const e=await navigator.storage.estimate();
+    const used=(e.usage||0)/1024/1024;
+    const quota=(e.quota||0)/1024/1024;
+    el("mobileStorageText").textContent=`${used.toFixed(0)} / ${quota.toFixed(0)} MB`;
+  }catch(e){}
+}
+function offlineTileSet(radiusM,zmin,zmax){
+  const out=[];
+  for(let z=zmin;z<=zmax;z++){
+    const set=new Set();
+    const n=2**z;
+    for(const p of POINTS){
+      const lat=p.lat,lon=p.lon;
+      const dlat=radiusM/111320;
+      const dlon=radiusM/(111320*Math.max(.01,Math.cos(rad(lat))));
+      const a=projectTile(lat-dlat,lon-dlon,z);
+      const b=projectTile(lat+dlat,lon+dlon,z);
+      const xmin=Math.floor(Math.min(a.x,b.x)), xmax=Math.floor(Math.max(a.x,b.x));
+      const ymin=Math.floor(Math.min(a.y,b.y)), ymax=Math.floor(Math.max(a.y,b.y));
+      for(let x=xmin;x<=xmax;x++) for(let y=ymin;y<=ymax;y++){
+        if(y>=0&&y<n) set.add(`${((x%n)+n)%n}/${y}`);
+      }
+    }
+    for(const key of set){
+      const [x,y]=key.split("/").map(Number);
+      out.push([z,x,y]);
+    }
+  }
+  return out;
+}
+function projectTile(lat,lon,z){
+  const n=2**z;
+  const x=(lon+180)/360*n;
+  const cl=Math.max(-85.05112878,Math.min(85.05112878,lat));
+  const y=(1-Math.asinh(Math.tan(rad(cl)))/Math.PI)/2*n;
+  return {x,y};
+}
+async function acquireWakeLock(){
+  try{
+    if("wakeLock" in navigator) wakeLock=await navigator.wakeLock.request("screen");
+  }catch(e){}
+}
+async function releaseWakeLock(){
+  try{if(wakeLock) await wakeLock.release();}catch(e){}
+  wakeLock=null;
+}
+async function prepareMobileOffline(){
+  if(!POINTS.length){ alert("Primero cargá el archivo privado del relevamiento."); return; }
+  if(!(await registerOfflineWorker())) return;
+  mobileDownloadPaused=false;
+  const radius=Number(el("mobileRadius").value);
+  const zmax=Number(el("mobileZmax").value);
+  const zmin=10;
+  const tiles=offlineTileSet(radius,zmin,zmax);
+  const total=tiles.length;
+  if(!total) return;
+  const approxLow=Math.round(total*20/1024);
+  const approxHigh=Math.round(total*45/1024);
+  const ok=confirm(`Se prepararán ${total.toLocaleString()} teselas.\n\nEstimación muy aproximada: ${approxLow}–${approxHigh} MB.\nEl tamaño real depende de las imágenes del IGN y del navegador.\n\n¿Continuar?`);
+  if(!ok) return;
+
+  await acquireWakeLock();
+  const bar=el("mobileProgressBar"), txt=el("mobileProgressText");
+  let done=0,failed=0,next=0;
+  const started=Date.now();
+  const concurrency=4;
+
+  async function worker(){
+    while(!mobileDownloadPaused){
+      const i=next++;
+      if(i>=total) break;
+      const [z,x,y]=tiles[i];
+      try{
+        const url=mobileTileUrl(z,x,y);
+        const r=await fetch(url,{mode:"no-cors",cache:"no-store"});
+        // Opaque responses have status 0; reaching here is enough.
+      }catch(e){ failed++; }
+      done++;
+      if(done%10===0 || done===total){
+        const pct=done/total*100;
+        bar.style.width=pct.toFixed(2)+"%";
+        const elapsed=Math.max(1,(Date.now()-started)/1000);
+        const rate=done/elapsed;
+        const eta=rate>0?(total-done)/rate:0;
+        txt.textContent=`${done.toLocaleString()} / ${total.toLocaleString()} · ${pct.toFixed(1)}% · ETA ${(eta/60).toFixed(1)} min${failed?` · fallos ${failed}`:""}`;
+        if(done%100===0) await updateMobileStorageInfo();
+      }
+    }
+  }
+  try{
+    await Promise.all(Array.from({length:concurrency},()=>worker()));
+  }finally{
+    await releaseWakeLock();
+    await updateMobileStorageInfo();
+  }
+  if(mobileDownloadPaused){
+    txt.textContent+= " · pausado";
+  }else{
+    bar.style.width="100%";
+    txt.textContent=`Listo · ${done.toLocaleString()} solicitudes${failed?` · ${failed} fallos`:""}`;
+    sourceMode="mobile";
+    localStorage.setItem("relevamientoSource",sourceMode);
+    el("sourceSelect").value=sourceMode;
+    render();
+  }
+}
+function pauseMobileOffline(){
+  mobileDownloadPaused=true;
+}
+async function checkMobileOffline(){
+  if(!(await registerOfflineWorker())) return;
+  try{
+    const cache=await caches.open(MOBILE_TILE_CACHE);
+    const keys=await cache.keys();
+    el("mobileProgressText").textContent=`Guardadas en este navegador: ${keys.length.toLocaleString()} teselas`;
+    await updateMobileStorageInfo();
+  }catch(e){
+    alert("No pude leer la caché offline: "+e.message);
+  }
+}
+async function clearMobileOffline(){
+  if(!confirm("¿Borrar todas las imágenes híbridas guardadas en este navegador?")) return;
+  try{
+    await caches.delete(MOBILE_TILE_CACHE);
+    el("mobileProgressBar").style.width="0%";
+    el("mobileProgressText").textContent="Mapa offline borrado";
+    await updateMobileStorageInfo();
+    render();
+  }catch(e){
+    alert("No pude borrar la caché: "+e.message);
+  }
+}
+
+function exportCsv(){
+  const rows=[["zeta","latitud","longitud","zona","estado","observaciones","actualizado"]];
+  POINTS.forEach(p=>{const r=rec(p.id);rows.push([p.id,p.lat,p.lon,p.zona,r.done?"Relevado":"Pendiente",r.note||"",r.updated||""]);});
+  const esc=v=>'"'+String(v??"").replaceAll('"','""')+'"';
+  download("avance_relevamiento.csv",rows.map(r=>r.map(esc).join(",")).join("\n"),"text/csv;charset=utf-8");
+}
+function backup(){
+  download("respaldo_relevamiento.json",JSON.stringify({version:1,created:new Date().toISOString(),state},null,2),"application/json");
+}
+el("loadPrivateData").onclick=()=>el("privateDataFile").click();
+el("privateDataFile").onchange=e=>importPrivateData(e.target.files?.[0]);
+el("forgetPrivateData").onclick=forgetPrivateData;
+el("searchBtn").onclick=search;el("searchInput").addEventListener("keydown",e=>{if(e.key==="Enter")search();});
+el("closeSheet").onclick=closePoint;
+el("toggleDone").onclick=()=>{if(!selectedId)return;const r=rec(selectedId);r.done=!r.done;r.updated=new Date().toISOString();saveState();openPoint(selectedId);};
+el("saveNote").onclick=()=>{if(!selectedId)return;const r=rec(selectedId);r.note=el("note").value;r.updated=new Date().toISOString();saveState();openPoint(selectedId);};
+el("copyCoords").onclick=async()=>{if(!selectedId)return;const p=POINTS.find(x=>x.id===selectedId);const s=p.lat+","+p.lon;try{await navigator.clipboard.writeText(s);alert("Coordenadas copiadas.");}catch{prompt("Copiá las coordenadas:",s);}};
+el("openMaps").onclick=()=>{if(!selectedId)return;const p=POINTS.find(x=>x.id===selectedId);location.href=`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`;}
+el("zoomIn").onclick=()=>{const mz=(effectiveSource()==="offline"&&mapPackageHeader?.zoom_max!=null)?Number(mapPackageHeader.zoom_max):19;zoom=Math.min(mz,zoom+1);render();};
+el("zoomOut").onclick=()=>{zoom=Math.max(5,zoom-1);render();};
+el("fitBtn").onclick=()=>fit();
+el("gpsBtn").onclick=startGps;el("nearestBtn").onclick=nearest;
+el("menuBtn").onclick=()=>{const p=el("menuPanel");p.style.display=p.style.display==="block"?"none":"block";};
+el("baseSelect").onchange=e=>{base=e.target.value;localStorage.setItem("relevamientoBase",base);render();};
+el("exportCsv").onclick=exportCsv;el("backupJson").onclick=backup;
+el("prepareMobileOffline").onclick=prepareMobileOffline;
+el("pauseMobileOffline").onclick=pauseMobileOffline;
+el("checkMobileOffline").onclick=checkMobileOffline;
+el("clearMobileOffline").onclick=clearMobileOffline;
+el("loadMapdata").onclick=()=>el("mapdataFile").click();
+el("mapdataFile").onchange=e=>loadMapdataFile(e.target.files?.[0]);
+el("unloadMapdata").onclick=unloadMapdata;
+el("restoreJson").onclick=()=>el("restoreFile").click();
+el("restoreFile").onchange=e=>{
+  const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const j=JSON.parse(rd.result);state=j.state||j;saveState();render();alert("Respaldo restaurado.");}catch{alert("El archivo no es un respaldo válido.");}};rd.readAsText(f);
+};
+el("resetProgress").onclick=()=>{if(confirm("¿Seguro que querés borrar estados y notas guardados en este navegador?")){state={};saveState();render();closePoint();}};
+document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));b.classList.add("active");activeFilter=b.dataset.filter;fit(visiblePoints());});
+map.addEventListener("pointerdown",e=>{
+  if(e.target.closest("button,.panel,#sheet"))return;
+  const c=project(center.lat,center.lon,zoom);drag={x:e.clientX,y:e.clientY,cx:c.x,cy:c.y};map.setPointerCapture?.(e.pointerId);
+});
+map.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;center=unproject(drag.cx-dx,drag.cy-dy,zoom);render();});
+map.addEventListener("pointerup",()=>drag=null);map.addEventListener("pointercancel",()=>drag=null);
+map.addEventListener("wheel",e=>{e.preventDefault();zoom=Math.max(5,Math.min(19,zoom+(e.deltaY<0?1:-1)));render();},{passive:false});
+window.addEventListener("resize",render);
+window.addEventListener("online",updateNet);window.addEventListener("offline",updateNet);
+base=localStorage.getItem("relevamientoBase")||"hybrid";
+if(!["hybrid","sat","streets"].includes(base)) base="hybrid";
+sourceMode=localStorage.getItem("relevamientoSource")||"auto";
+if(!["auto","mobile","offline","online"].includes(sourceMode)) sourceMode="auto";
+el("baseSelect").value=base;
+el("sourceSelect").value=sourceMode;
+el("sourceSelect").onchange=e=>{sourceMode=e.target.value;localStorage.setItem("relevamientoSource",sourceMode);render();};
+updateMapModeBadge();
+loadPrivatePointsFromStorage();
+updatePrivateDataStatus();
+updateStats();updateNet();fit(POINTS);
+if(!isSecureForOffline()) el("httpsBanner").style.display="block";
+setTimeout(()=>registerOfflineWorker(),300);
+</script>
+</body>
+</html>
