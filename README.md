@@ -1,4 +1,4 @@
-# Relevamiento Zetas — V8.4 · Zonas offline
+# Relevamiento Zetas — V8.5 · Zonas offline
 
 Esta versión mantiene los datos del relevamiento separados de la web pública y agrega un segundo sistema offline más robusto:
 
@@ -79,3 +79,12 @@ Cada archivo incluye solamente las teselas necesarias alrededor de los puntos de
 Esto reduce el tamaño frente a un paquete único de todo el relevamiento.
 
 Los `.mapdata` de versiones anteriores siguen siendo compatibles.
+
+
+## Correcciones V8.5
+
+- Al elegir la ubicación del `.mapdata`, la creación comienza automáticamente.
+- Se eliminó la confirmación posterior al selector de archivos.
+- El estado cambia inmediatamente a `Preparando cobertura...`.
+- El buscador quedó casi pegado al encabezado azul.
+- Los filtros y el panel lateral también se desplazaron hacia arriba.

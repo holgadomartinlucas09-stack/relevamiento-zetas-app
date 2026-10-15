@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0f172a">
-<title>Relevamiento Zetas · V8.4 · Zonas offline</title>
+<title>Relevamiento Zetas · V8.5 · Zonas offline</title>
 <style>
 :root {
   --bg:#0f172a; --panel:#ffffff; --text:#0f172a; --muted:#64748b;
@@ -21,12 +21,12 @@ header{height:58px;background:var(--bg);color:white;display:flex;align-items:cen
 .stats{display:flex;gap:6px;font-size:12px;margin-left:auto}
 .badge{padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.12)}
 #net{font-weight:700}
-.toolbar{position:absolute;z-index:30;top:68px;left:10px;right:10px;display:flex;gap:6px;align-items:center;pointer-events:none}
+.toolbar{position:absolute;z-index:30;top:8px;left:10px;right:10px;display:flex;gap:6px;align-items:center;pointer-events:none}
 .toolbar>*{pointer-events:auto}
 .search{flex:1;display:flex;background:white;border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
 .search input{border:0;outline:none;padding:12px 12px;flex:1;min-width:0}
 .search button{border:0;background:white;padding:0 13px;font-weight:700}
-.chipbar{position:absolute;z-index:30;top:118px;left:10px;right:10px;display:flex;gap:6px;overflow:auto;padding-bottom:4px}
+.chipbar{position:absolute;z-index:30;top:58px;left:10px;right:10px;display:flex;gap:6px;overflow:auto;padding-bottom:4px}
 .chip{border:0;border-radius:999px;padding:8px 11px;background:white;box-shadow:0 3px 10px rgba(15,23,42,.12);white-space:nowrap;font-size:13px}
 .chip.active{background:#0f172a;color:white}
 #map{position:relative;flex:1;background:#cbd5e1;overflow:hidden;touch-action:none}
@@ -59,7 +59,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 .panel{
   position:absolute;
   z-index:35;
-  top:163px;
+  top:103px;
   left:10px;
   background:white;
   border-radius:14px;
@@ -67,7 +67,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
   padding:10px;
   display:none;
   width:min(300px,calc(100% - 20px));
-  max-height:calc(100% - 173px);
+  max-height:calc(100% - 113px);
   overflow-y:auto;
   overflow-x:hidden;
   overscroll-behavior:contain;
@@ -89,7 +89,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
   .stats .badge:nth-child(1){display:none}
   .panel{
     width:calc(100% - 20px);
-    max-height:calc(100% - 173px);
+    max-height:calc(100% - 113px);
   }
 }
 
@@ -118,12 +118,19 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 .file-card input[type="checkbox"]{width:auto}
 .physical-status{font-size:11px;margin-top:7px;padding:8px;background:white;border-radius:9px;border:1px solid #bbf7d0;line-height:1.4}
 
+
+@media (max-width:520px){
+  .toolbar{top:6px;left:8px;right:8px}
+  .chipbar{top:56px;left:8px;right:8px}
+  .panel{top:101px;left:8px;width:calc(100% - 16px);max-height:calc(100% - 109px)}
+}
+
 </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <div class="brand">Relevamiento Zetas · V8.4 · Zonas offline</div>
+    <div class="brand">Relevamiento Zetas · V8.5 · Zonas offline</div>
     <div class="stats">
       <div class="badge">Total <b id="totalCount">0</b></div>
       <div class="badge">Pend. <b id="pendingCount">0</b></div>
@@ -184,7 +191,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
       <div class="file-card">
         <h3>💾 Crear archivo físico .mapdata</h3>
         <div class="smalltxt">
-          Crea un archivo real en el almacenamiento del teléfono. Podés generar solo la zona Este u Oeste para reducir el tamaño. Al tocar el botón se abre primero el selector de guardado. Contiene las imágenes del mapa y no depende de que Chrome conserve su caché.
+          Crea un archivo real en el almacenamiento del teléfono. Podés generar solo la zona Este u Oeste para reducir el tamaño. Al tocar el botón se abre primero el selector de guardado y, al elegir la ubicación, la creación comienza automáticamente. Contiene las imágenes del mapa y no depende de que Chrome conserve su caché.
           <b>Este archivo también debe tratarse como confidencial</b>, porque la distribución de teselas permite inferir las zonas del relevamiento.
         </div>
         <div class="fields">
@@ -236,9 +243,10 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
           <span id="physicalSizeText">—</span>
         </div>
         <div class="row" style="margin-top:8px">
-          <button id="createPhysicalMap">Elegir archivo y crear .mapdata</button>
+          <button id="createPhysicalMap">Elegir ubicación e iniciar .mapdata</button>
           <button id="stopPhysicalMap">Detener y guardar parcial</button>
         </div>
+        <div style="font-size:10px;color:#64748b;margin-top:7px">Después de elegir la carpeta/archivo no hay un segundo botón: la descarga comienza sola.</div>
         <div id="physicalSupport" class="physical-status">Comprobando si el navegador permite guardar archivos grandes…</div>
         <div class="smalltxt" style="margin-top:7px">
           Recomendado: <b>Chrome/Edge en Android</b>. La app escribe cada tesela directamente al archivo, sin intentar mantener ~1 GB completo en la memoria RAM.
@@ -1079,66 +1087,68 @@ async function createPhysicalMapdata(){
     return;
   }
 
-  // Android/Brave exige que el selector se invoque inmediatamente desde el toque.
-  // No hacemos confirm(), await, cálculos de teselas ni otras operaciones antes.
+  // Tomamos la configuración ANTES del picker (operaciones sincrónicas mínimas).
+  const area=el("physicalArea").value;
+  const areaPoints=physicalAreaPoints();
+  if(!areaPoints.length){alert("La zona seleccionada no contiene puntos.");return;}
+  const radius=Number(el("physicalRadius").value);
+  const zmax=Number(el("physicalZmax").value);
+  const zmin=8;
+  const choice=el("physicalLayers").value;
+  const layers=choice==="both"?["hybrid","sat"]:[choice];
+  const areaLabel=area==="all"?"Todos":`Solo ${area}`;
+  const suggestedName=physicalSuggestedName();
+
+  // Debe ser la primera interacción async después del toque.
   let handle;
   try{
     handle=await window.showSaveFilePicker({
       id:"relevamiento-zetas-mapdata",
-      suggestedName:physicalSuggestedName(),
+      suggestedName,
       startIn:"downloads",
       types:[{description:"Mapa offline Relevamiento Zetas",accept:{"application/octet-stream":[".mapdata"]}}]
     });
   }catch(e){
     if(e?.name!=="AbortError"){
       const msg=String(e?.message||e);
-      if(msg.includes("user gesture") || msg.includes("user activation")){
-        alert("El navegador no detectó correctamente el toque. Actualizá la página y tocá una sola vez “Elegir archivo y crear .mapdata”.");
-      }else{
-        alert("No pude abrir el selector de guardado:\n"+msg);
-      }
+      alert("No pude abrir el selector de guardado:\n"+msg);
     }
     return;
   }
 
-  // Recién después de elegir la ubicación calculamos la cobertura.
-  const area=el("physicalArea").value;
-  const areaPoints=physicalAreaPoints();
-  if(!areaPoints.length){
-    alert("La zona seleccionada no contiene puntos.");
+  // A partir de acá comienza automáticamente: no hay confirmación adicional.
+  const bar=el("physicalProgressBar"),txt=el("physicalProgressText"),siz=el("physicalSizeText");
+  bar.style.width="0%";
+  txt.textContent=`Preparando cobertura · ${areaLabel} · ${radius.toLocaleString()} m · z8–${zmax}…`;
+  siz.textContent="calculando…";
+
+  // Dejar que el navegador pinte el mensaje antes del cálculo de teselas.
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
+  let tiles;
+  try{
+    tiles=offlineTileSet(radius,zmin,zmax,areaPoints);
+  }catch(e){
+    txt.textContent="Error al calcular cobertura";
+    siz.textContent="—";
+    alert("No pude calcular las teselas del paquete:\n"+(e.message||e));
     return;
   }
-  const radius=Number(el("physicalRadius").value);
-  const zmax=Number(el("physicalZmax").value);
-  const zmin=8;
-  const choice=el("physicalLayers").value;
-  const layers=choice==="both"?["hybrid","sat"]:[choice];
-  const tiles=offlineTileSet(radius,zmin,zmax,areaPoints);
+
   const total=tiles.length*layers.length;
   const names=layers.map(x=>x==="hybrid"?"Híbrido":"Imagen aérea").join(" + ");
-  const areaLabel=area==="all"?"Todos":`Solo ${area}`;
+  txt.textContent=`Preparado: ${tiles.length.toLocaleString()} posiciones · ${total.toLocaleString()} teselas (${names})`;
+  siz.textContent="iniciando…";
 
-  // A esta altura todavía no se escribió el archivo.
-  const ok=confirm(`Ubicación de guardado seleccionada.
-
-Zona: ${areaLabel} · ${areaPoints.length.toLocaleString()} Zetas.
-Radio: ${radius.toLocaleString()} m · zoom 8–${zmax}.
-
-Se crearán ${tiles.length.toLocaleString()} posiciones de mapa para ${names}.
-
-Teselas a procesar: ${total.toLocaleString()}.
-El tamaño final puede ser de varios cientos de MB o superar 1 GB según la cobertura.
-
-El archivo también debe considerarse confidencial.
-
-¿Comenzar la descarga?`);
-  if(!ok) return;
+  // Otra oportunidad para actualizar visualmente antes de empezar red/archivo.
+  await new Promise(resolve=>requestAnimationFrame(resolve));
 
   physicalBuilding=true;
   physicalStopRequested=false;
   await acquireWakeLock();
-  const bar=el("physicalProgressBar"),txt=el("physicalProgressText"),siz=el("physicalSizeText");
-  bar.style.width="0%"; txt.textContent="Comprobando acceso a las imágenes…"; siz.textContent="0 MB";
+  bar.style.width="0%";
+  txt.textContent=`Comprobando acceso a las imágenes · ${areaLabel}…`;
+  siz.textContent="0 MB";
   let writable=null;
   const tilesIndex={};
   const layerCounts={hybrid:0,sat:0};
@@ -1216,7 +1226,7 @@ El archivo también debe considerarse confidencial.
     bar.style.width=physicalStopRequested?(completed/total*100).toFixed(2)+"%":"100%";
     txt.textContent=`${physicalStopRequested?"Archivo parcial guardado":"Archivo listo"} · ${Object.keys(tilesIndex).length.toLocaleString()} teselas${failed?` · ${failed} fallos`:""}`;
     siz.textContent=`~${finalMB.toFixed(0)} MB`;
-    alert(`${physicalStopRequested?"Se guardó un paquete parcial":"Mapa offline creado"}.\n\nAhora tocá “Abrir .mapdata” y elegí relevamiento_mapa.mapdata.\n\nDespués podés poner el teléfono en modo avión y usar Híbrido o Solo imagen aérea.`);
+    alert(`${physicalStopRequested?"Se guardó un paquete parcial":"Mapa offline creado"}.\n\nAhora tocá “Abrir .mapdata” y elegí el archivo que acabás de guardar.\n\nDespués podés poner el teléfono en modo avión y usar Híbrido o Solo imagen aérea.`);
   }catch(e){
     try{ if(writable) await writable.abort(); }catch(_){}
     alert("No pude crear el .mapdata:\n\n"+(e.message||e)+"\n\nSi el mensaje menciona acceso/CORS, usá por ahora la caché offline y decime qué error aparece para adaptar la descarga.");
