@@ -1,4 +1,4 @@
-# Relevamiento Zetas — V8.5 · Zonas offline
+# Relevamiento Zetas — V8.6 · Zonas offline
 
 Esta versión mantiene los datos del relevamiento separados de la web pública y agrega un segundo sistema offline más robusto:
 
@@ -88,3 +88,12 @@ Los `.mapdata` de versiones anteriores siguen siendo compatibles.
 - El estado cambia inmediatamente a `Preparando cobertura...`.
 - El buscador quedó casi pegado al encabezado azul.
 - Los filtros y el panel lateral también se desplazaron hacia arriba.
+
+
+## Corrección V8.6
+
+Se corrigió el error:
+`lonLatToTile is not defined`
+
+La conversión geográfica longitud/latitud → tesela XYZ ahora está definida explícitamente
+dentro de la aplicación y el generador `.mapdata` no depende de funciones heredadas.

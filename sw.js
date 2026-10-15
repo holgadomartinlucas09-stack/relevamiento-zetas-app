@@ -1,6 +1,6 @@
 const HYBRID_CACHE="zetas-argenmap-hybrid-v1";
 const SAT_CACHE="zetas-satellite-v1";
-const APP_CACHE="zetas-app-shell-v8-5";
+const APP_CACHE="zetas-app-shell-v8-6";
 const IGN_BASE="https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/mapabase_hibrido@EPSG%3A3857@png/";
 const SAT_BASE="https://imagenes.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/mosaicos_vuelos@EPSG%3A3857@png/";
 
