@@ -1,4 +1,4 @@
-# Relevamiento Zetas — V8.1 · Archivo físico offline
+# Relevamiento Zetas — V8.2 · Archivo físico offline
 
 Esta versión mantiene los datos del relevamiento separados de la web pública y agrega un segundo sistema offline más robusto:
 
@@ -39,3 +39,12 @@ Atribución incluida en la aplicación.
 El panel lateral ahora tiene desplazamiento vertical independiente.
 No es necesario reducir el zoom del navegador para acceder a todas las opciones.
 Funciona con rueda del mouse, touchpad y gesto táctil en celular.
+
+
+## Corrección V8.2
+
+Se corrigió el error en Android/Brave:
+`Must be handling a user gesture to show a file picker`.
+
+Ahora `showSaveFilePicker()` se ejecuta inmediatamente al tocar el botón,
+antes de cualquier confirmación, cálculo o operación asíncrona.

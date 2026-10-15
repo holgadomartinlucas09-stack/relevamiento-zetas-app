@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0f172a">
-<title>Relevamiento Zetas · V8.1 · Archivo físico</title>
+<title>Relevamiento Zetas · V8.2 · Archivo físico</title>
 <style>
 :root {
   --bg:#0f172a; --panel:#ffffff; --text:#0f172a; --muted:#64748b;
@@ -123,7 +123,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 <body>
 <div id="app">
   <header>
-    <div class="brand">Relevamiento Zetas · V8.1 · Archivo físico</div>
+    <div class="brand">Relevamiento Zetas · V8.2 · Archivo físico</div>
     <div class="stats">
       <div class="badge">Total <b id="totalCount">0</b></div>
       <div class="badge">Pend. <b id="pendingCount">0</b></div>
@@ -184,7 +184,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
       <div class="file-card">
         <h3>💾 Crear archivo físico .mapdata</h3>
         <div class="smalltxt">
-          Crea un archivo real en el almacenamiento del teléfono. Contiene las imágenes del mapa y no depende de que Chrome conserve su caché.
+          Crea un archivo real en el almacenamiento del teléfono. Al tocar el botón se abre primero el selector de guardado. Contiene las imágenes del mapa y no depende de que Chrome conserve su caché.
           <b>Este archivo también debe tratarse como confidencial</b>, porque la distribución de teselas permite inferir las zonas del relevamiento.
         </div>
         <div class="fields">
@@ -221,7 +221,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
           <span id="physicalSizeText">—</span>
         </div>
         <div class="row" style="margin-top:8px">
-          <button id="createPhysicalMap">Crear .mapdata</button>
+          <button id="createPhysicalMap">Elegir archivo y crear .mapdata</button>
           <button id="stopPhysicalMap">Detener y guardar parcial</button>
         </div>
         <div id="physicalSupport" class="physical-status">Comprobando si el navegador permite guardar archivos grandes…</div>
@@ -1002,17 +1002,9 @@ async function createPhysicalMapdata(){
     alert("Este navegador no permite guardar un archivo grande de forma progresiva. Abrí la app con Chrome o Edge actualizado, o usá temporalmente la caché offline.");
     return;
   }
-  const radius=Number(el("physicalRadius").value);
-  const zmax=Number(el("physicalZmax").value);
-  const zmin=10;
-  const choice=el("physicalLayers").value;
-  const layers=choice==="both"?["hybrid","sat"]:[choice];
-  const tiles=offlineTileSet(radius,zmin,zmax);
-  const total=tiles.length*layers.length;
-  const names=layers.map(x=>x==="hybrid"?"Híbrido":"Imagen aérea").join(" + ");
-  const ok=confirm(`Se crearán ${tiles.length.toLocaleString()} posiciones de mapa para ${names}.\n\nTeselas a procesar: ${total.toLocaleString()}.\nEl tamaño final puede ser de varios cientos de MB o superar 1 GB según la cobertura.\n\nEl archivo también debe considerarse confidencial.\n\n¿Continuar?`);
-  if(!ok) return;
 
+  // Android/Brave exige que el selector se invoque inmediatamente desde el toque.
+  // No hacemos confirm(), await, cálculos de teselas ni otras operaciones antes.
   let handle;
   try{
     handle=await window.showSaveFilePicker({
@@ -1022,9 +1014,39 @@ async function createPhysicalMapdata(){
       types:[{description:"Mapa offline Relevamiento Zetas",accept:{"application/octet-stream":[".mapdata"]}}]
     });
   }catch(e){
-    if(e?.name!=="AbortError") alert("No pude abrir el selector de guardado:\n"+e.message);
+    if(e?.name!=="AbortError"){
+      const msg=String(e?.message||e);
+      if(msg.includes("user gesture") || msg.includes("user activation")){
+        alert("El navegador no detectó correctamente el toque. Actualizá la página y tocá una sola vez “Elegir archivo y crear .mapdata”.");
+      }else{
+        alert("No pude abrir el selector de guardado:\n"+msg);
+      }
+    }
     return;
   }
+
+  // Recién después de elegir la ubicación calculamos la cobertura.
+  const radius=Number(el("physicalRadius").value);
+  const zmax=Number(el("physicalZmax").value);
+  const zmin=10;
+  const choice=el("physicalLayers").value;
+  const layers=choice==="both"?["hybrid","sat"]:[choice];
+  const tiles=offlineTileSet(radius,zmin,zmax);
+  const total=tiles.length*layers.length;
+  const names=layers.map(x=>x==="hybrid"?"Híbrido":"Imagen aérea").join(" + ");
+
+  // A esta altura todavía no se escribió el archivo.
+  const ok=confirm(`Ubicación de guardado seleccionada.
+
+Se crearán ${tiles.length.toLocaleString()} posiciones de mapa para ${names}.
+
+Teselas a procesar: ${total.toLocaleString()}.
+El tamaño final puede ser de varios cientos de MB o superar 1 GB según la cobertura.
+
+El archivo también debe considerarse confidencial.
+
+¿Comenzar la descarga?`);
+  if(!ok) return;
 
   physicalBuilding=true;
   physicalStopRequested=false;
