@@ -1,4 +1,4 @@
-# Relevamiento Zetas — V8.6 · Zonas offline
+# Relevamiento Zetas — V8.7 · Generador PC
 
 Esta versión mantiene los datos del relevamiento separados de la web pública y agrega un segundo sistema offline más robusto:
 
@@ -97,3 +97,14 @@ Se corrigió el error:
 
 La conversión geográfica longitud/latitud → tesela XYZ ahora está definida explícitamente
 dentro de la aplicación y el generador `.mapdata` no depende de funciones heredadas.
+
+
+## Mejora V8.7 — Generador PC
+
+- Descarga paralela controlada: 4, 8 o 12 solicitudes simultáneas.
+- Reintento automático de cada tesela hasta 3 veces.
+- Escritura secuencial al `.mapdata` para mantener bajo el uso de RAM.
+- Indicadores de teselas/s, MB/min y ETA.
+- En PC se recomienda `PC rápido · 8 simultáneas`.
+- En Android la app baja automáticamente a 4 simultáneas.
+- El formato `.mapdata` sigue siendo V2 y es compatible con versiones anteriores.

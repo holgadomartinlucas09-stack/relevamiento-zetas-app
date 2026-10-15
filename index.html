@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0f172a">
-<title>Relevamiento Zetas · V8.6 · Zonas offline</title>
+<title>Relevamiento Zetas · V8.7 · Generador PC</title>
 <style>
 :root {
   --bg:#0f172a; --panel:#ffffff; --text:#0f172a; --muted:#64748b;
@@ -130,7 +130,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 <body>
 <div id="app">
   <header>
-    <div class="brand">Relevamiento Zetas · V8.6 · Zonas offline</div>
+    <div class="brand">Relevamiento Zetas · V8.7 · Generador PC</div>
     <div class="stats">
       <div class="badge">Total <b id="totalCount">0</b></div>
       <div class="badge">Pend. <b id="pendingCount">0</b></div>
@@ -221,6 +221,14 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
             </select>
           </div>
           <div>
+            <label>Rendimiento de descarga</label>
+            <select id="physicalConcurrency">
+              <option value="4">Conservador · 4 simultáneas</option>
+              <option value="8" selected>PC rápido · 8 simultáneas</option>
+              <option value="12">PC potente · 12 simultáneas</option>
+            </select>
+          </div>
+          <div>
             <label>Nombre sugerido</label>
             <div id="physicalFilenamePreview" style="font-size:11px;padding:10px 8px;background:white;border:1px solid #cbd5e1;border-radius:10px;min-height:38px;display:flex;align-items:center;word-break:break-all">
               relevamiento_este_z17_2000m.mapdata
@@ -235,7 +243,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
         </select>
         <label style="display:flex;gap:8px;align-items:center;margin-top:8px;color:#334155">
           <input id="physicalCompress" type="checkbox" checked>
-          Comprimir imágenes a WebP (~78 %) para reducir el tamaño
+          Comprimir a WebP (~78 %) · archivo más chico, pero tarda más
         </label>
         <div class="progress"><div id="physicalProgressBar"></div></div>
         <div class="progressline">
@@ -249,7 +257,9 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
         <div style="font-size:10px;color:#64748b;margin-top:7px">Después de elegir la carpeta/archivo no hay un segundo botón: la descarga comienza sola.</div>
         <div id="physicalSupport" class="physical-status">Comprobando si el navegador permite guardar archivos grandes…</div>
         <div class="smalltxt" style="margin-top:7px">
-          Recomendado: <b>Chrome/Edge en Android</b>. La app escribe cada tesela directamente al archivo, sin intentar mantener ~1 GB completo en la memoria RAM.
+          <b>Para paquetes grandes:</b> generá el archivo desde una PC con Chrome/Edge y luego copialo al celular.
+          El modo <b>PC rápido</b> descarga hasta 8 teselas en paralelo, pero mantiene una cola pequeña para no llenar la RAM.
+          Si priorizás velocidad sobre tamaño, desmarcá la compresión WebP.
         </div>
       </div>
 
@@ -1060,6 +1070,20 @@ async function fetchExportTile(layer,z,x,y){
   if(b.byteLength<100) throw new Error("respuesta vacía");
   return b;
 }
+async function fetchExportTileRetry(layer,z,x,y,maxAttempts=3){
+  let lastErr=null;
+  for(let attempt=1;attempt<=maxAttempts;attempt++){
+    try{
+      return await fetchExportTile(layer,z,x,y);
+    }catch(e){
+      lastErr=e;
+      if(attempt<maxAttempts){
+        await new Promise(r=>setTimeout(r,250*attempt));
+      }
+    }
+  }
+  throw lastErr||new Error("fallo de descarga");
+}
 async function testExportAccess(layers,tile){
   for(const layer of layers){
     const [z,x,y]=tile;
@@ -1131,7 +1155,8 @@ async function createPhysicalMapdata(){
   // A partir de acá comienza automáticamente: no hay confirmación adicional.
   const bar=el("physicalProgressBar"),txt=el("physicalProgressText"),siz=el("physicalSizeText");
   bar.style.width="0%";
-  txt.textContent=`Preparando cobertura · ${areaLabel} · ${radius.toLocaleString()} m · z8–${zmax}…`;
+  const concurrency=Math.max(1,Number(el("physicalConcurrency")?.value||8));
+  txt.textContent=`Preparando cobertura · ${areaLabel} · ${radius.toLocaleString()} m · z8–${zmax} · ${concurrency} simultáneas…`;
   siz.textContent="calculando…";
 
   // Dejar que el navegador pinte el mensaje antes del cálculo de teselas.
@@ -1175,14 +1200,40 @@ async function createPhysicalMapdata(){
     await writable.write(enc.encode("ZMAPDT02"));
     let dataOffset=0;
 
-    // La escritura es secuencial para mantener bajo el uso de RAM.
-    outer:
+    // Descarga paralela controlada + escritura secuencial.
+    // Así aceleramos en PC sin mantener miles de teselas en RAM.
+    const jobs=[];
     for(const layer of layers){
-      for(const [z,x,y] of tiles){
-        if(physicalStopRequested) break outer;
+      for(const [z,x,y] of tiles) jobs.push({layer,z,x,y});
+    }
+
+    for(let i=0;i<jobs.length;i+=concurrency){
+      if(physicalStopRequested) break;
+
+      const batch=jobs.slice(i,i+concurrency);
+
+      // Se descargan varias teselas en paralelo.
+      const downloaded=await Promise.all(batch.map(async job=>{
         try{
-          const raw=await fetchExportTile(layer,z,x,y);
-          const converted=await transcodeWebp(raw,.78);
+          const raw=await fetchExportTileRetry(job.layer,job.z,job.x,job.y,3);
+          return {ok:true,job,raw};
+        }catch(error){
+          return {ok:false,job,error};
+        }
+      }));
+
+      // Luego se convierten/escriben una a una para mantener controlado el uso de memoria.
+      for(const item of downloaded){
+        if(physicalStopRequested) break;
+        if(!item.ok){
+          failed++;
+          completed++;
+          continue;
+        }
+
+        try{
+          const {layer,z,x,y}=item.job;
+          const converted=await transcodeWebp(item.raw,.78);
           const key=`${layer}/${z}/${x}/${y}`;
           await writable.write(converted.data);
           tilesIndex[key]=[dataOffset,converted.data.byteLength,converted.mime];
@@ -1193,16 +1244,21 @@ async function createPhysicalMapdata(){
           failed++;
         }
         completed++;
-        if(completed%5===0 || completed===total){
-          const pct=completed/total*100;
-          bar.style.width=pct.toFixed(2)+"%";
-          const elapsed=Math.max(1,(Date.now()-started)/1000);
-          const rate=completed/elapsed;
-          const eta=rate>0?(total-completed)/rate:0;
-          txt.textContent=`${completed.toLocaleString()} / ${total.toLocaleString()} · ${pct.toFixed(1)}%${failed?` · fallos ${failed}`:""} · ETA ${(eta/60).toFixed(1)} min`;
-          siz.textContent=`${(written/1024/1024).toFixed(0)} MB`;
-        }
       }
+
+      // Actualización de progreso una vez por lote.
+      const pct=total?completed/total*100:0;
+      bar.style.width=Math.min(100,pct).toFixed(2)+"%";
+      const elapsed=Math.max(0.25,(Date.now()-started)/1000);
+      const rate=completed/elapsed;
+      const eta=rate>0?(total-completed)/rate:0;
+      const mb=written/1024/1024;
+      const mbRate=mb/elapsed;
+      txt.textContent=`${completed.toLocaleString()} / ${total.toLocaleString()} · ${pct.toFixed(1)}% · ${rate.toFixed(1)} tes/s${failed?` · fallos ${failed}`:""} · ETA ${(eta/60).toFixed(1)} min`;
+      siz.textContent=`${mb.toFixed(0)} MB · ${(mbRate*60).toFixed(1)} MB/min`;
+
+      // Cede brevemente el control para mantener la interfaz fluida.
+      await new Promise(r=>setTimeout(r,0));
     }
 
     txt.textContent=physicalStopRequested?"Finalizando archivo parcial…":"Finalizando índice…";
@@ -1223,6 +1279,8 @@ async function createPhysicalMapdata(){
       tile_count:Object.keys(tilesIndex).length,
       layer_counts:layerCounts,
       failed_tiles:failed,
+      generator_concurrency:Number(el("physicalConcurrency")?.value||8),
+      generator_webp:!!el("physicalCompress").checked,
       partial:physicalStopRequested || completed<total,
       attribution:"FUENTE: Instituto Geográfico Nacional de la República Argentina",
       tiles:tilesIndex
@@ -1317,6 +1375,9 @@ el("sourceSelect").value=sourceMode;
 el("sourceSelect").onchange=e=>{sourceMode=e.target.value;localStorage.setItem("relevamientoSource",sourceMode);render();};
 updateMapModeBadge();
 updatePhysicalSupport();
+if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){
+  if(el("physicalConcurrency")) el("physicalConcurrency").value="4";
+}
 loadPrivatePointsFromStorage();
 updatePrivateDataStatus();
 updateStats();updateNet();fit(POINTS);
