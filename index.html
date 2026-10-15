@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0f172a">
-<title>Relevamiento Zetas · V8.7 · Generador PC</title>
+<title>Relevamiento Zetas · V8.8 · Generador PC rápido</title>
 <style>
 :root {
   --bg:#0f172a; --panel:#ffffff; --text:#0f172a; --muted:#64748b;
@@ -130,7 +130,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 <body>
 <div id="app">
   <header>
-    <div class="brand">Relevamiento Zetas · V8.7 · Generador PC</div>
+    <div class="brand">Relevamiento Zetas · V8.8 · Generador PC rápido</div>
     <div class="stats">
       <div class="badge">Total <b id="totalCount">0</b></div>
       <div class="badge">Pend. <b id="pendingCount">0</b></div>
@@ -224,8 +224,18 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
             <label>Rendimiento de descarga</label>
             <select id="physicalConcurrency">
               <option value="4">Conservador · 4 simultáneas</option>
-              <option value="8" selected>PC rápido · 8 simultáneas</option>
-              <option value="12">PC potente · 12 simultáneas</option>
+              <option value="8">PC rápido · 8 simultáneas</option>
+              <option value="12" selected>PC potente · 12 simultáneas</option>
+              <option value="16">Máximo estable · 16 simultáneas</option>
+            </select>
+          </div>
+          <div>
+            <label>Uso del procesador</label>
+            <select id="physicalCpu">
+              <option value="1">Bajo · 1 conversión</option>
+              <option value="2">Medio · 2 conversiones</option>
+              <option value="4" selected>Alto · 4 conversiones</option>
+              <option value="6">Muy alto · 6 conversiones</option>
             </select>
           </div>
           <div>
@@ -258,7 +268,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
         <div id="physicalSupport" class="physical-status">Comprobando si el navegador permite guardar archivos grandes…</div>
         <div class="smalltxt" style="margin-top:7px">
           <b>Para paquetes grandes:</b> generá el archivo desde una PC con Chrome/Edge y luego copialo al celular.
-          El modo <b>PC rápido</b> descarga hasta 8 teselas en paralelo, pero mantiene una cola pequeña para no llenar la RAM.
+          El modo <b>PC potente</b> puede descargar hasta 12–16 teselas en paralelo y usar varias conversiones simultáneas, manteniendo una cola pequeña para no llenar la RAM.
           Si priorizás velocidad sobre tamaño, desmarcá la compresión WebP.
         </div>
       </div>
@@ -1047,6 +1057,22 @@ function u64le(n){
   v.setBigUint64(0,BigInt(n),true);
   return new Uint8Array(b);
 }
+
+async function runLimited(items, limit, worker){
+  const results=new Array(items.length);
+  let next=0;
+  async function one(){
+    while(true){
+      const idx=next++;
+      if(idx>=items.length) return;
+      results[idx]=await worker(items[idx], idx);
+    }
+  }
+  const n=Math.max(1,Math.min(limit, items.length || 1));
+  await Promise.all(Array.from({length:n}, ()=>one()));
+  return results;
+}
+
 async function transcodeWebp(buffer,quality=.78){
   if(!el("physicalCompress")?.checked) return {data:new Uint8Array(buffer),mime:"image/png"};
   try{
@@ -1155,8 +1181,9 @@ async function createPhysicalMapdata(){
   // A partir de acá comienza automáticamente: no hay confirmación adicional.
   const bar=el("physicalProgressBar"),txt=el("physicalProgressText"),siz=el("physicalSizeText");
   bar.style.width="0%";
-  const concurrency=Math.max(1,Number(el("physicalConcurrency")?.value||8));
-  txt.textContent=`Preparando cobertura · ${areaLabel} · ${radius.toLocaleString()} m · z8–${zmax} · ${concurrency} simultáneas…`;
+  const concurrency=Math.max(1,Number(el("physicalConcurrency")?.value||12));
+  const cpuConv=Math.max(1,Number(el("physicalCpu")?.value||4));
+  txt.textContent=`Preparando cobertura · ${areaLabel} · ${radius.toLocaleString()} m · z8–${zmax} · ${concurrency} descargas · ${cpuConv} conversiones…`;
   siz.textContent="calculando…";
 
   // Dejar que el navegador pinte el mensaje antes del cálculo de teselas.
@@ -1200,19 +1227,21 @@ async function createPhysicalMapdata(){
     await writable.write(enc.encode("ZMAPDT02"));
     let dataOffset=0;
 
-    // Descarga paralela controlada + escritura secuencial.
-    // Así aceleramos en PC sin mantener miles de teselas en RAM.
+    // Descarga paralela controlada + conversión concurrente + escritura secuencial.
+    // La idea es aprovechar mejor la PC sin dejar que la cola crezca demasiado.
     const jobs=[];
     for(const layer of layers){
       for(const [z,x,y] of tiles) jobs.push({layer,z,x,y});
     }
+
+    const cpuConv=Math.max(1,Number(el("physicalCpu")?.value||4));
 
     for(let i=0;i<jobs.length;i+=concurrency){
       if(physicalStopRequested) break;
 
       const batch=jobs.slice(i,i+concurrency);
 
-      // Se descargan varias teselas en paralelo.
+      // 1) Descarga en paralelo
       const downloaded=await Promise.all(batch.map(async job=>{
         try{
           const raw=await fetchExportTileRetry(job.layer,job.z,job.x,job.y,3);
@@ -1222,9 +1251,21 @@ async function createPhysicalMapdata(){
         }
       }));
 
-      // Luego se convierten/escriben una a una para mantener controlado el uso de memoria.
-      for(const item of downloaded){
+      // 2) Conversión limitada por CPU (si WebP está activo)
+      const converted=await runLimited(downloaded, cpuConv, async (item)=>{
+        if(!item.ok) return item;
+        try{
+          const out=await transcodeWebp(item.raw,.78);
+          return {ok:true,job:item.job,converted:out};
+        }catch(error){
+          return {ok:false,job:item.job,error};
+        }
+      });
+
+      // 3) Escritura secuencial para mantener el .mapdata coherente
+      for(const item of converted){
         if(physicalStopRequested) break;
+
         if(!item.ok){
           failed++;
           completed++;
@@ -1233,12 +1274,12 @@ async function createPhysicalMapdata(){
 
         try{
           const {layer,z,x,y}=item.job;
-          const converted=await transcodeWebp(item.raw,.78);
+          const convertedData=item.converted;
           const key=`${layer}/${z}/${x}/${y}`;
-          await writable.write(converted.data);
-          tilesIndex[key]=[dataOffset,converted.data.byteLength,converted.mime];
-          dataOffset+=converted.data.byteLength;
-          written+=converted.data.byteLength;
+          await writable.write(convertedData.data);
+          tilesIndex[key]=[dataOffset,convertedData.data.byteLength,convertedData.mime];
+          dataOffset+=convertedData.data.byteLength;
+          written+=convertedData.data.byteLength;
           layerCounts[layer]++;
         }catch(e){
           failed++;
@@ -1246,7 +1287,7 @@ async function createPhysicalMapdata(){
         completed++;
       }
 
-      // Actualización de progreso una vez por lote.
+      // Actualización de progreso por lote.
       const pct=total?completed/total*100:0;
       bar.style.width=Math.min(100,pct).toFixed(2)+"%";
       const elapsed=Math.max(0.25,(Date.now()-started)/1000);
@@ -1254,10 +1295,10 @@ async function createPhysicalMapdata(){
       const eta=rate>0?(total-completed)/rate:0;
       const mb=written/1024/1024;
       const mbRate=mb/elapsed;
-      txt.textContent=`${completed.toLocaleString()} / ${total.toLocaleString()} · ${pct.toFixed(1)}% · ${rate.toFixed(1)} tes/s${failed?` · fallos ${failed}`:""} · ETA ${(eta/60).toFixed(1)} min`;
+      txt.textContent=`${completed.toLocaleString()} / ${total.toLocaleString()} · ${pct.toFixed(1)}% · ${rate.toFixed(1)} tes/s · ${concurrency} descargas · ${cpuConv} conv.${failed?` · fallos ${failed}`:""} · ETA ${(eta/60).toFixed(1)} min`;
       siz.textContent=`${mb.toFixed(0)} MB · ${(mbRate*60).toFixed(1)} MB/min`;
 
-      // Cede brevemente el control para mantener la interfaz fluida.
+      // Cede control brevemente para mantener la UI fluida.
       await new Promise(r=>setTimeout(r,0));
     }
 
@@ -1279,7 +1320,8 @@ async function createPhysicalMapdata(){
       tile_count:Object.keys(tilesIndex).length,
       layer_counts:layerCounts,
       failed_tiles:failed,
-      generator_concurrency:Number(el("physicalConcurrency")?.value||8),
+      generator_concurrency:Number(el("physicalConcurrency")?.value||12),
+      generator_cpu:Number(el("physicalCpu")?.value||4),
       generator_webp:!!el("physicalCompress").checked,
       partial:physicalStopRequested || completed<total,
       attribution:"FUENTE: Instituto Geográfico Nacional de la República Argentina",
@@ -1296,7 +1338,7 @@ async function createPhysicalMapdata(){
     bar.style.width=physicalStopRequested?(completed/total*100).toFixed(2)+"%":"100%";
     txt.textContent=`${physicalStopRequested?"Archivo parcial guardado":"Archivo listo"} · ${Object.keys(tilesIndex).length.toLocaleString()} teselas${failed?` · ${failed} fallos`:""}`;
     siz.textContent=`~${finalMB.toFixed(0)} MB`;
-    alert(`${physicalStopRequested?"Se guardó un paquete parcial":"Mapa offline creado"}.\n\nAhora tocá “Abrir .mapdata” y elegí el archivo que acabás de guardar.\n\nDespués podés poner el teléfono en modo avión y usar Híbrido o Solo imagen aérea.`);
+    alert(`${physicalStopRequested?"Se guardó un paquete parcial":"Mapa offline creado"}.\n\nAhora tocá “Abrir .mapdata” y elegí el archivo que acabás de guardar.\n\nDespués podés copiar el archivo al celular, abrirlo y usar Híbrido o Solo imagen aérea incluso sin conexión.`);
   }catch(e){
     try{ if(writable) await writable.abort(); }catch(_){}
     alert("No pude crear el .mapdata:\n\n"+(e.message||e)+"\n\nSi el mensaje menciona acceso/CORS, usá por ahora la caché offline y decime qué error aparece para adaptar la descarga.");
@@ -1377,6 +1419,11 @@ updateMapModeBadge();
 updatePhysicalSupport();
 if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){
   if(el("physicalConcurrency")) el("physicalConcurrency").value="4";
+  if(el("physicalCpu")) el("physicalCpu").value="1";
+}else{
+  const hc=Math.max(2, Number(navigator.hardwareConcurrency||8));
+  if(el("physicalConcurrency")) el("physicalConcurrency").value = hc>=12 ? "16" : hc>=8 ? "12" : "8";
+  if(el("physicalCpu")) el("physicalCpu").value = hc>=12 ? "6" : hc>=8 ? "4" : "2";
 }
 loadPrivatePointsFromStorage();
 updatePrivateDataStatus();

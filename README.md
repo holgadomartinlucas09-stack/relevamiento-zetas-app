@@ -1,4 +1,4 @@
-# Relevamiento Zetas — V8.7 · Generador PC
+# Relevamiento Zetas — V8.8 · Generador PC rápido
 
 Esta versión mantiene los datos del relevamiento separados de la web pública y agrega un segundo sistema offline más robusto:
 
@@ -108,3 +108,20 @@ dentro de la aplicación y el generador `.mapdata` no depende de funciones hered
 - En PC se recomienda `PC rápido · 8 simultáneas`.
 - En Android la app baja automáticamente a 4 simultáneas.
 - El formato `.mapdata` sigue siendo V2 y es compatible con versiones anteriores.
+
+
+## Mejora V8.8 — más uso del procesador
+
+- Selector de `Uso del procesador`: 1, 2, 4 o 6 conversiones simultáneas.
+- Hasta 16 descargas simultáneas para PC.
+- Pipeline en 3 etapas:
+  1. descarga en paralelo,
+  2. conversión concurrente,
+  3. escritura secuencial.
+- Autoajuste inicial según `navigator.hardwareConcurrency`.
+- Pensado para notebooks como Ryzen 5 8645HS.
+
+Recomendación para una notebook potente:
+- Descargas: 12 simultáneas
+- CPU: 4 conversiones
+- WebP: activado si querés reducir tamaño; desactivado si priorizás velocidad.
