@@ -1,4 +1,4 @@
-# Relevamiento Zetas — V7 Confidencial
+# Relevamiento Zetas — V7.1 Confidencial
 
 Esta versión separa el visor web de los datos sensibles.
 
@@ -22,3 +22,6 @@ La app lo guarda localmente en el navegador del dispositivo.
 5. Trabajar sin conexión.
 
 Fuente cartográfica: Argenmap Híbrido — Instituto Geográfico Nacional de la República Argentina.
+
+## V7.1
+La descarga móvil puede guardar por separado Argenmap Híbrido y la capa de imagen aérea/ortofoto del IGN para uso sin conexión.

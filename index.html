@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0f172a">
-<title>Relevamiento Zetas · V7 Confidencial</title>
+<title>Relevamiento Zetas · V7.1 Confidencial</title>
 <style>
 :root {
   --bg:#0f172a; --panel:#ffffff; --text:#0f172a; --muted:#64748b;
@@ -87,7 +87,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 <body>
 <div id="app">
   <header>
-    <div class="brand">Relevamiento Zetas · V7 Confidencial</div>
+    <div class="brand">Relevamiento Zetas · V7.1 Confidencial</div>
     <div class="stats">
       <div class="badge">Total <b id="totalCount">0</b></div>
       <div class="badge">Pend. <b id="pendingCount">0</b></div>
@@ -130,7 +130,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
       <label>Fondo</label>
       <select id="baseSelect">
         <option value="hybrid">Híbrido · satélite + caminos</option>
-        <option value="sat">Solo satélite</option>
+        <option value="sat">Solo imagen aérea / satelital</option>
         <option value="streets">Solo calles</option>
       </select>
       <label>Origen de los mapas</label>
@@ -168,6 +168,12 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
             </select>
           </div>
         </div>
+        <label style="margin-top:8px">Capas a guardar</label>
+        <select id="mobileLayers">
+          <option value="both" selected>Híbrido + imagen aérea · recomendado</option>
+          <option value="hybrid">Solo híbrido</option>
+          <option value="sat">Solo imagen aérea / satelital</option>
+        </select>
         <div class="progress"><div id="mobileProgressBar"></div></div>
         <div class="progressline">
           <span id="mobileProgressText">Sin iniciar</span>
@@ -182,8 +188,8 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
           <button id="clearMobileOffline">Borrar mapa del celular</button>
         </div>
         <div class="smalltxt" style="margin-top:7px">
-          La descarga se guarda en la caché privada del navegador. Si ya existen teselas, se reutilizan.
-          Para descargar en Android esta página debe abrirse desde <b>HTTPS</b>, no como archivo local.
+          La descarga se guarda en la caché privada del navegador. Podés guardar <b>Híbrido</b>, <b>imagen aérea</b> o ambas capas.
+          Si ya existen teselas, se reutilizan. Para descargar en Android esta página debe abrirse desde <b>HTTPS</b>, no como archivo local.
         </div>
       </div>
       <div class="row">
@@ -195,7 +201,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
         Paquete offline: no cargado.
       </div>
       <div style="font-size:11px;color:#64748b;margin-top:6px">
-        Híbrido es el modo predeterminado. En Android podés guardar Argenmap Híbrido directamente en la caché offline del navegador; el archivo <b>.mapdata</b> queda como alternativa.
+        Híbrido es el modo predeterminado. En Android podés guardar tanto el mapa <b>Híbrido</b> como la capa de <b>Solo imagen aérea</b> para usarlas sin Internet; el archivo <b>.mapdata</b> queda como alternativa.
       </div>
       <div class="row">
         <button id="exportCsv">Exportar CSV</button>
@@ -255,8 +261,9 @@ let center={lat:-34.6177,lon:-68.3301}, zoom=11, base="hybrid", sourceMode="auto
 let selectedId=null, gpsPos=null, gpsWatch=null, drag=null, raf=0;
 let mapPackageFile=null, mapPackageHeader=null, mapPackageDataStart=0, mapPackageName="";
 let swReady=false, mobileDownloadPaused=false, wakeLock=null;
-const MOBILE_TILE_CACHE="zetas-argenmap-hybrid-v1";
-const MOBILE_SW_ROUTE="__ign_hybrid/";
+const MOBILE_HYBRID_CACHE="zetas-argenmap-hybrid-v1";
+const MOBILE_SAT_CACHE="zetas-satellite-v1";
+const MOBILE_SW_ROUTES={hybrid:"__ign_hybrid/",sat:"__satellite/"};
 
 let renderSerial=0;
 const MAPDATA_MAGIC_V1="ZMAPDAT1"; const MAPDATA_MAGIC_V2="ZMAPDT02"; const MAPDATA_FOOTER_V2="ZMAPEND2";
@@ -390,8 +397,22 @@ function onlineTileUrl(kind,z,x,y){
   return "";
 }
 
-function mobileTileUrl(z,x,y){
-  return new URL(`${MOBILE_SW_ROUTE}${z}/${x}/${y}.png`, location.href).href;
+function mobileTileUrl(kind,z,x,y){
+  const route=MOBILE_SW_ROUTES[kind];
+  if(!route) return "";
+  return new URL(`${route}${z}/${x}/${y}.png`, location.href).href;
+}
+function addTileWithFallback(url,fallback,left,top,cls){
+  const im=document.createElement("img");
+  im.className="tile "+cls; im.draggable=false;
+  im.src=url;
+  im.style.left=left+"px"; im.style.top=top+"px";
+  let triedFallback=false;
+  im.onerror=()=>{
+    if(!triedFallback && fallback){triedFallback=true;im.src=fallback;return;}
+    im.remove();
+  };
+  map.appendChild(im);
 }
 function addTile(url,left,top,cls){
   const im=document.createElement("img");
@@ -500,10 +521,12 @@ function render(){
 
       if(src==="mobile"){
         if(base==="hybrid"){
-          addTile(mobileTileUrl(zoom,wrapped,ty),px,py,"tile-base");
+          addTile(mobileTileUrl("hybrid",zoom,wrapped,ty),px,py,"tile-base");
         }else if(base==="sat"){
-          // La caché móvil usa Argenmap Híbrido; para satélite puro se mantiene la fuente online.
-          if(navigator.onLine) addTile(onlineTileUrl("sat",zoom,wrapped,ty),px,py,"tile-base");
+          // Primero el híbrido como respaldo; encima se dibuja la imagen aérea del IGN.
+          // Si la ortofoto no existe o es transparente, nunca quedamos con el mapa completamente vacío.
+          addTile(mobileTileUrl("hybrid",zoom,wrapped,ty),px,py,"tile-base");
+          addTile(mobileTileUrl("sat",zoom,wrapped,ty),px,py,"tile-base");
         }else{
           if(navigator.onLine) addTile(onlineTileUrl("streets",zoom,wrapped,ty),px,py,"tile-streets");
         }
@@ -550,7 +573,7 @@ function render(){
     }
 
     if(src==="mobile"){
-      el("attrib").textContent=base==="hybrid"?"FUENTE: Instituto Geográfico Nacional de la República Argentina · caché móvil":"Caché móvil";
+      el("attrib").textContent=base==="hybrid"?"FUENTE: Instituto Geográfico Nacional de la República Argentina · caché móvil":base==="sat"?"FUENTE: IGN · ortofotos/imágenes aéreas · caché móvil":"Caché móvil";
     }else if(src==="offline"){
       el("attrib").textContent=mapPackageFile&&base==="hybrid"?"FUENTE: Instituto Geográfico Nacional de la República Argentina":mapPackageFile?(base==="sat"?"Paquete local · satélite":"Paquete local · calles"):"Offline · sin paquete";
     }else{
@@ -726,30 +749,35 @@ async function prepareMobileOffline(){
   mobileDownloadPaused=false;
   const radius=Number(el("mobileRadius").value);
   const zmax=Number(el("mobileZmax").value);
+  const layerChoice=el("mobileLayers").value;
+  const layers=layerChoice==="both"?["hybrid","sat"]:[layerChoice];
   const zmin=10;
   const tiles=offlineTileSet(radius,zmin,zmax);
-  const total=tiles.length;
+  const totalTiles=tiles.length;
+  const total=totalTiles*layers.length;
   if(!total) return;
   const approxLow=Math.round(total*20/1024);
-  const approxHigh=Math.round(total*45/1024);
-  const ok=confirm(`Se prepararán ${total.toLocaleString()} teselas.\n\nEstimación muy aproximada: ${approxLow}–${approxHigh} MB.\nEl tamaño real depende de las imágenes del IGN y del navegador.\n\n¿Continuar?`);
+  const approxHigh=Math.round(total*55/1024);
+  const names=layers.map(x=>x==="hybrid"?"Híbrido":"Imagen aérea").join(" + ");
+  const ok=confirm(`Se prepararán ${totalTiles.toLocaleString()} posiciones de mapa para ${names}.\n\nSolicitudes totales: ${total.toLocaleString()}.\nEstimación muy aproximada: ${approxLow}–${approxHigh} MB.\nEl tamaño real depende de las imágenes y del navegador.\n\n¿Continuar?`);
   if(!ok) return;
 
   await acquireWakeLock();
   const bar=el("mobileProgressBar"), txt=el("mobileProgressText");
   let done=0,failed=0,next=0;
+  const jobs=[];
+  for(const layer of layers) for(const t of tiles) jobs.push([layer,...t]);
   const started=Date.now();
   const concurrency=4;
 
   async function worker(){
     while(!mobileDownloadPaused){
       const i=next++;
-      if(i>=total) break;
-      const [z,x,y]=tiles[i];
+      if(i>=jobs.length) break;
+      const [layer,z,x,y]=jobs[i];
       try{
-        const url=mobileTileUrl(z,x,y);
-        const r=await fetch(url,{mode:"no-cors",cache:"no-store"});
-        // Opaque responses have status 0; reaching here is enough.
+        const url=mobileTileUrl(layer,z,x,y);
+        await fetch(url,{mode:"no-cors",cache:"no-store"});
       }catch(e){ failed++; }
       done++;
       if(done%10===0 || done===total){
@@ -786,18 +814,19 @@ function pauseMobileOffline(){
 async function checkMobileOffline(){
   if(!(await registerOfflineWorker())) return;
   try{
-    const cache=await caches.open(MOBILE_TILE_CACHE);
-    const keys=await cache.keys();
-    el("mobileProgressText").textContent=`Guardadas en este navegador: ${keys.length.toLocaleString()} teselas`;
+    const hybrid=await caches.open(MOBILE_HYBRID_CACHE);
+    const sat=await caches.open(MOBILE_SAT_CACHE);
+    const [hk,sk]=await Promise.all([hybrid.keys(),sat.keys()]);
+    el("mobileProgressText").textContent=`Guardadas · Híbrido: ${hk.length.toLocaleString()} · Satélite: ${sk.length.toLocaleString()} teselas`;
     await updateMobileStorageInfo();
   }catch(e){
     alert("No pude leer la caché offline: "+e.message);
   }
 }
 async function clearMobileOffline(){
-  if(!confirm("¿Borrar todas las imágenes híbridas guardadas en este navegador?")) return;
+  if(!confirm("¿Borrar todas las imágenes híbridas y satelitales guardadas en este navegador?")) return;
   try{
-    await caches.delete(MOBILE_TILE_CACHE);
+    await Promise.all([caches.delete(MOBILE_HYBRID_CACHE),caches.delete(MOBILE_SAT_CACHE)]);
     el("mobileProgressBar").style.width="0%";
     el("mobileProgressText").textContent="Mapa offline borrado";
     await updateMobileStorageInfo();

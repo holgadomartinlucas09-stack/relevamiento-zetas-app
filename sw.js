@@ -1,6 +1,8 @@
-const TILE_CACHE="zetas-argenmap-hybrid-v1";
-const APP_CACHE="zetas-app-shell-v6";
+const HYBRID_CACHE="zetas-argenmap-hybrid-v1";
+const SAT_CACHE="zetas-satellite-v1";
+const APP_CACHE="zetas-app-shell-v7-1";
 const IGN_BASE="https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/mapabase_hibrido@EPSG%3A3857@png/";
+const SAT_BASE="https://imagenes.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/mosaicos_vuelos@EPSG%3A3857@png/";
 
 self.addEventListener("install",event=>{
   event.waitUntil((async()=>{
@@ -13,11 +15,15 @@ self.addEventListener("install",event=>{
 });
 
 self.addEventListener("activate",event=>{
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async()=>{
+    const keep=new Set([HYBRID_CACHE,SAT_CACHE,APP_CACHE]);
+    const names=await caches.keys();
+    await Promise.all(names.filter(n=>n.startsWith("zetas-")&&!keep.has(n)).map(n=>caches.delete(n)));
+    await self.clients.claim();
+  })());
 });
 
-function parseHybridRoute(url){
-  const marker="/__ign_hybrid/";
+function parseRoute(url,marker){
   const i=url.pathname.lastIndexOf(marker);
   if(i<0) return null;
   const rest=url.pathname.slice(i+marker.length);
@@ -26,13 +32,10 @@ function parseHybridRoute(url){
   return {z:Number(m[1]),x:Number(m[2]),y:Number(m[3])};
 }
 
-async function hybridResponse(request,coord){
-  const cache=await caches.open(TILE_CACHE);
+async function cachedTile(request,cacheName,remote){
+  const cache=await caches.open(cacheName);
   const cached=await cache.match(request);
   if(cached) return cached;
-
-  const tmsY=(2**coord.z)-1-coord.y;
-  const remote=`${IGN_BASE}${coord.z}/${coord.x}/${tmsY}.png`;
   try{
     const response=await fetch(remote,{mode:"no-cors",cache:"no-store"});
     await cache.put(request,response.clone());
@@ -46,9 +49,19 @@ async function hybridResponse(request,coord){
 
 self.addEventListener("fetch",event=>{
   const url=new URL(event.request.url);
-  const coord=parseHybridRoute(url);
-  if(coord){
-    event.respondWith(hybridResponse(event.request,coord));
+  const hybrid=parseRoute(url,"/__ign_hybrid/");
+  if(hybrid){
+    const tmsY=(2**hybrid.z)-1-hybrid.y;
+    const remote=`${IGN_BASE}${hybrid.z}/${hybrid.x}/${tmsY}.png`;
+    event.respondWith(cachedTile(event.request,HYBRID_CACHE,remote));
+    return;
+  }
+
+  const sat=parseRoute(url,"/__satellite/");
+  if(sat){
+    const tmsY=(2**sat.z)-1-sat.y;
+    const remote=`${SAT_BASE}${sat.z}/${sat.x}/${tmsY}.png`;
+    event.respondWith(cachedTile(event.request,SAT_CACHE,remote));
     return;
   }
 
