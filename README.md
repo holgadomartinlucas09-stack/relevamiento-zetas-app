@@ -1,4 +1,4 @@
-# Relevamiento Zetas — V8 · Archivo físico offline
+# Relevamiento Zetas — V8.1 · Archivo físico offline
 
 Esta versión mantiene los datos del relevamiento separados de la web pública y agrega un segundo sistema offline más robusto:
 
@@ -32,3 +32,10 @@ El formato V2 se lee por rangos, por lo que un archivo grande no se carga entero
 - Fotografías aéreas / ortomosaicos del IGN.
 
 Atribución incluida en la aplicación.
+
+
+## Mejora V8.1
+
+El panel lateral ahora tiene desplazamiento vertical independiente.
+No es necesario reducir el zoom del navegador para acceder a todas las opciones.
+Funciona con rueda del mouse, touchpad y gesto táctil en celular.

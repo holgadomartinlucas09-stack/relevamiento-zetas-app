@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0f172a">
-<title>Relevamiento Zetas · V8 · Archivo físico</title>
+<title>Relevamiento Zetas · V8.1 · Archivo físico</title>
 <style>
 :root {
   --bg:#0f172a; --panel:#ffffff; --text:#0f172a; --muted:#64748b;
@@ -56,7 +56,30 @@ header{height:58px;background:var(--bg);color:white;display:flex;align-items:cen
 textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;border-radius:12px;padding:10px;resize:vertical}
 .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:13px}
 .meta div{background:#f8fafc;border-radius:10px;padding:9px}
-.panel{position:absolute;z-index:35;top:163px;left:10px;background:white;border-radius:14px;box-shadow:var(--shadow);padding:10px;display:none;width:min(300px,calc(100% - 20px))}
+.panel{
+  position:absolute;
+  z-index:35;
+  top:163px;
+  left:10px;
+  background:white;
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  padding:10px;
+  display:none;
+  width:min(300px,calc(100% - 20px));
+  max-height:calc(100% - 173px);
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  scrollbar-color:#94a3b8 #f1f5f9;
+  scrollbar-gutter:stable;
+}
+.panel::-webkit-scrollbar{width:10px}
+.panel::-webkit-scrollbar-track{background:#f1f5f9;border-radius:999px}
+.panel::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:999px;border:2px solid #f1f5f9}
+.panel::-webkit-scrollbar-thumb:hover{background:#64748b}
 .panel label{display:block;font-size:12px;color:var(--muted);margin:6px 0 3px}
 .panel select,.panel button{width:100%;border:1px solid #cbd5e1;background:white;border-radius:10px;padding:9px}
 .panel .row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
@@ -64,6 +87,10 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 @media (max-width:520px){
   .brand{font-size:14px}
   .stats .badge:nth-child(1){display:none}
+  .panel{
+    width:calc(100% - 20px);
+    max-height:calc(100% - 173px);
+  }
 }
 
 .offline-card{margin-top:10px;border:1px solid #dbeafe;background:#eff6ff;border-radius:12px;padding:10px}
@@ -96,7 +123,7 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
 <body>
 <div id="app">
   <header>
-    <div class="brand">Relevamiento Zetas · V8 · Archivo físico</div>
+    <div class="brand">Relevamiento Zetas · V8.1 · Archivo físico</div>
     <div class="stats">
       <div class="badge">Total <b id="totalCount">0</b></div>
       <div class="badge">Pend. <b id="pendingCount">0</b></div>
@@ -272,6 +299,9 @@ textarea{width:100%;min-height:80px;margin-top:10px;border:1px solid #cbd5e1;bor
       <input id="restoreFile" type="file" accept="application/json" hidden>
       <div style="font-size:11px;color:#64748b;margin-top:8px">
         Los estados y notas se guardan en este navegador. El .mapdata se lee por partes: aunque ronde 1 GB o más, la app abre únicamente las teselas que necesita y no carga el archivo completo en RAM.
+      </div>
+          <div style="position:sticky;bottom:-10px;margin:10px -10px -10px;padding:7px 10px;background:linear-gradient(transparent,#fff 32%);font-size:10px;color:#64748b;text-align:center;pointer-events:none">
+        Deslizá dentro de este panel para ver más opciones
       </div>
     </div>
 
